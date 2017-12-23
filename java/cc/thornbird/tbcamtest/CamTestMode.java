@@ -1,5 +1,11 @@
 package cc.thornbird.tbcamtest;
 
+import android.hardware.camera2.CameraAccessException;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.SystemClock;
+import android.util.Log;
+
 /**
  * Created by thornbird on 2017/12/21.
  */
@@ -16,9 +22,19 @@ public class CamTestMode {
     private CamTestCases mCamTestCases;
 
     private Boolean isTestRunning = false;
+    private HandlerThread mTestCaseThread;
+    private Handler mTestCaseHandler;
 
-    public CamTestMode(int Mode,CameraInfoCache mCamInfoCache)
+    private CamTestCallBack mCamTestCallBack;
+
+    public CamTestMode(int Mode,CameraInfoCache mCamInfoCache,CamTestCallBack mCB)
     {
+        mCamTestCallBack = mCB;
+
+        mTestCaseThread = new HandlerThread("CameraTestCaseThread");
+        mTestCaseThread.start();
+        mTestCaseHandler = new Handler(mTestCaseThread.getLooper());
+
         switch(Mode)
         {
             case TM_BaseTest_Mode:
@@ -28,15 +44,32 @@ public class CamTestMode {
 
     public void run()
     {
-        isTestRunning = true;
-        mCamTestCases.doRunTestCases();
+        mTestCaseHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                isTestRunning = true;
+                mCamTestCases.doRunTestCases();
+                mCamTestCases.testIsFinish();
+                mCamTestCallBack.CamTestIsFinish();
+            }
+        });
     }
 
     public void stop()
     {
-        if(isTestRunning)
-            mCamTestCases.stop();
+        mTestCaseHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if(isTestRunning)
+                    mCamTestCases.stop();
 
-        isTestRunning = false;
+                isTestRunning = false;
+            }
+        });
     }
+
+    interface CamTestCallBack{
+        Boolean CamTestIsFinish();
+    }
+
 }

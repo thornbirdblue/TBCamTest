@@ -8,4 +8,5 @@ public interface CamTestCases {
 
     public CamTestReprot doRunTestCases();
     public void stop();
+    public Boolean testIsFinish();
 }

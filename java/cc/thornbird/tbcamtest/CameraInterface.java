@@ -8,15 +8,17 @@ import android.view.Surface;
  */
 
 public interface CameraInterface {
-    Boolean openCamera();
+    void openCamera();
 
-    Boolean closeCamera();
+    void closeCamera();
 
-    Boolean startPreview(Surface surface);
-    Boolean startPreview(Surface surface,boolean ZslMode);
+    void startPreview(Surface surface);
+    void startPreview(Surface surface,boolean ZslMode);
 
-    Boolean takePicture();
+    void takePicture();
 
     void startRecording();
     void stopRecording();
+
+    Boolean OpsIsFinish();
 }

@@ -146,12 +146,12 @@ public class CameraInfoCache {
             long lowestStall = Long.MAX_VALUE;
             for (int i = 0; i < formats.length; i++) {
                 if (formats[i] == ImageFormat.YUV_420_888) {
-                    Log.d(TAG,"YUV support");
+                    Log.v(TAG,"YUV support");
                     mCam.mYuvPicSupport = true;
                     mCam.mLargestYuvSize = returnLargestSize(map.getOutputSizes(formats[i]));
                 }
                 if (formats[i] == ImageFormat.JPEG) {
-                    Log.d(TAG,"JPEG support");
+                    Log.v(TAG,"JPEG support");
                     mCam.mJpegPicSupport = true;
                     mCam.mLargestJpegSize = returnLargestSize(map.getOutputSizes(formats[i]));
                 }
@@ -159,7 +159,7 @@ public class CameraInfoCache {
                     Size size = returnLargestSize(map.getOutputSizes(formats[i]));
                     long stall = map.getOutputStallDuration(formats[i], size);
                     if (stall < lowestStall) {
-                        Log.d(TAG,"RAW support");
+                        Log.v(TAG,"RAW support");
                         mCam.mRawPicSupport = true;
                         mCam.mRawFormat = formats[i];
                         mCam.mRawSize = size;

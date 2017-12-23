@@ -1,21 +1,27 @@
 package cc.thornbird.tbcamtest;
 
+import android.util.Log;
 import android.view.View;
 import android.view.SurfaceView;
 import android.view.SurfaceHolder;
+
+import java.util.concurrent.Semaphore;
 
 /**
  * Created by thornbird on 2017/12/21.
  */
 
 public class BaseTestCases implements CamTestCases {
+    private static final String TAG = "TBCamTest_BaseTestCases";
     private CamTestReprot mCamTestReport;
     private Api2Camera mApi2Cam;
 
     private SurfaceView mPreviewView;
     private SurfaceHolder mPreviewHolder;
-    private final int mPreviewTime = 10000; // 500ms
-    private final int mRecordingTime = 10000;
+    private final int mPreviewTime = 500; // 500ms
+    private final int mRecordingTime = 1000;
+
+    private volatile Semaphore mSemaphore = new Semaphore(0);
 
     public  BaseTestCases(CameraInfoCache mCIF)
     {
@@ -29,43 +35,51 @@ public class BaseTestCases implements CamTestCases {
 
     public CamTestReprot doRunTestCases()
     {
-        testOpenOneCamera();
+        testOpenOneCameraAndClose();
         testStartPreview();
+        testTakePicture();
+        testRecording();
+        CamIsFinish();
+        mSemaphore.release();
+        return mCamTestReport;
+    }
+
+    private void testOpenOneCameraAndClose()
+    {
+        mApi2Cam.openCamera();
+        mApi2Cam.closeCamera();
+    }
+
+    private void testStartPreview()
+    {
+        mApi2Cam.openCamera();
+        mApi2Cam.startPreview(mPreviewHolder.getSurface());
         try {
             Thread.sleep(mPreviewTime);
         } catch (InterruptedException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        testTakePicture();
-        testStartPreview();
-        testRecording();
-//        testCameraClose();
-        return mCamTestReport;
-    }
-
-    private void testOpenOneCamera()
-    {
-        mApi2Cam.openCamera();
-    }
-
-    private void testStartPreview()
-    {
-        mApi2Cam.startPreview(mPreviewHolder.getSurface());
+        mApi2Cam.closeCamera();
     }
 
     private void testTakePicture()
     {
+        mApi2Cam.openCamera();
+        mApi2Cam.startPreview(mPreviewHolder.getSurface());
+        try {
+            Thread.sleep(mPreviewTime);
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         mApi2Cam.takePicture();
-    }
-
-    private void testCameraClose()
-    {
         mApi2Cam.closeCamera();
     }
 
     private void testRecording()
     {
+        mApi2Cam.openCamera();
         mApi2Cam.startRecording();
         try {
             Thread.sleep(mRecordingTime);
@@ -74,10 +88,25 @@ public class BaseTestCases implements CamTestCases {
             e.printStackTrace();
         }
         mApi2Cam.stopRecording();
+        mApi2Cam.closeCamera();
     }
 
+    private void CamIsFinish()
+    {
+        mApi2Cam.OpsIsFinish();
+    }
     public void stop()
     {
         mApi2Cam.closeCamera();
+    }
+
+    public Boolean testIsFinish()
+    {
+        try {
+            mSemaphore.acquire();
+        } catch (InterruptedException e) {
+            Log.e(TAG,"Sem acquire ERROR!");
+        }
+        return true;
     }
 }

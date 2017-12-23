@@ -39,13 +39,6 @@ public class Api2Camera implements CameraInterface {
     private static final String TAG = "TBCamTest_Api2Camera";
     private static int LOG_NTH_FRAME = 30;
 
-    private final int CAM_STAT_NULL = 0;
-    private final int CAM_STAT_STOP_PRVIEW = 1;
-    private final int CAM_STAT_START_PRVIEW = 2;
-    private final int CAM_STAT_TAKE_PICTURE = 3;
-
-    private int mCamStat = CAM_STAT_NULL;
-
     private CamTestReprot mCamTestReport = null;
 
     private CameraInfoCache mCamInfo = null;
@@ -179,7 +172,6 @@ public class Api2Camera implements CameraInterface {
                         jpegBuf = new byte[buffer.capacity()];
                         buffer.get(jpegBuf);
                     }
-                    mCamStat = CAM_STAT_STOP_PRVIEW;
 //                    mMyCameraCallback.jpegAvailable(jpegBuf, img.getWidth(), img.getHeight());
                     img.close();
 
@@ -258,7 +250,7 @@ public class Api2Camera implements CameraInterface {
 
     private void CamOpsReq()
     {
-        Log.d(TAG, "REQ Cam Op Lock!");
+        Log.v(TAG, "REQ Cam Op Lock!");
         try {
             mSemaphore.acquire();
         } catch (InterruptedException e) {
@@ -268,11 +260,11 @@ public class Api2Camera implements CameraInterface {
 
     private void CamOpsFinish()
     {
-        Log.d(TAG, "Last Cam cmd is finish!");
+        Log.v(TAG, "Last Cam cmd is finish!");
         mSemaphore.release();
     }
 
-    public Boolean openCamera()
+    public void openCamera()
     {
         Log.d(TAG, "STARTUP_REQUIREMENT opening camera " + mCamInfo.getCameraId());
         CamOpsReq();
@@ -287,41 +279,44 @@ public class Api2Camera implements CameraInterface {
                 }
             }
         });
-        return true;
     }
 
-    public Boolean closeCamera()
+    public void closeCamera()
     {
         Log.d(TAG, "Closing camera " + mCamInfo.getCameraId());
         CamOpsReq();
-        if (mCameraDevice != null) {
-            try {
-                mCurrentCaptureSession.abortCaptures();
-            } catch (CameraAccessException e) {
-                Log.e(TAG, "Could not abortCaptures().");
+        mOpsHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (mCameraDevice != null) {
+                    if(mCurrentCaptureSession != null) {
+                        try {
+                            mCurrentCaptureSession.abortCaptures();
+                        } catch (CameraAccessException e) {
+                            Log.e(TAG, "Could not abortCaptures().");
+                        }
+                        mCurrentCaptureSession = null;
+                    }
+                    mCameraDevice.close();
+                }
+                CamOpsFinish();
             }
-            mCameraDevice.close();
-        }
-        mCurrentCaptureSession = null;
-        CamOpsFinish();
+        });
         Log.d(TAG, "Done Closing camera " + mCamInfo.getCameraId());
-        return true;
     }
 
-    public Boolean startPreview(Surface surface)
+    public void startPreview(Surface surface)
     {
         mPreviewSurface = surface;
         mZslMode = false;
         CamStartPreview();
-        return true;
     }
 
-    public Boolean startPreview(Surface surface,boolean ZslMode)
+    public void startPreview(Surface surface,boolean ZslMode)
     {
         mPreviewSurface = surface;
         mZslMode = ZslMode;
         CamStartPreview();
-        return true;
     }
 
     private void CamStartPreview()
@@ -337,7 +332,6 @@ public class Api2Camera implements CameraInterface {
                     }
                 }
         });
-
     }
 
     private void startCaptureSession() {
@@ -349,7 +343,6 @@ public class Api2Camera implements CameraInterface {
         outputSurfaces.add(mPreviewSurface);
 
         try {
-                mCamStat = CAM_STAT_START_PRVIEW;
                 mCameraDevice.createCaptureSession(outputSurfaces, mSessionStateCallback, null);
                 Log.v(TAG, "  Call to createCaptureSession complete.");
         } catch (CameraAccessException e) {
@@ -362,6 +355,7 @@ public class Api2Camera implements CameraInterface {
         CameraTime.t_burst = SystemClock.elapsedRealtime();
         Log.d(TAG, "PreviewCaptureRequest...");
         try {
+            mFirstFrameArrived = false;
             CaptureRequest.Builder b1 = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             b1.addTarget(mPreviewSurface);
             mCurrentCaptureSession.setRepeatingRequest(b1.build(), mCaptureCallback, mOpsHandler);
@@ -383,23 +377,7 @@ public class Api2Camera implements CameraInterface {
         }
     }
 
-    private void JpegPictureCaptureSession() {
-        CameraTime.t_session_go = SystemClock.elapsedRealtime();
-
-        Log.v(TAG, "Start Configuring JpegPictureCaptureSession..");
-        List<Surface> outputSurfaces = new ArrayList<Surface>(3);
-
-        outputSurfaces.add(mJpegImageReader.getSurface());
-
-        try {
-            mCamStat = CAM_STAT_TAKE_PICTURE;
-            mCameraDevice.createCaptureSession(outputSurfaces, mJpegSessionStateCallback, null);
-            Log.v(TAG, "Call to JpegPictureCaptureSession complete.");
-        } catch (CameraAccessException e) {
-            Log.e(TAG, "Error configuring ISP.");
-        }
-    }
-    public Boolean takePicture()
+    public void takePicture()
     {
         Log.v(TAG, "takePicture..");
         CamOpsReq();
@@ -414,12 +392,27 @@ public class Api2Camera implements CameraInterface {
                     takeCapturePicture();
             }
         });
-        return true;
     }
 
     private void takeCapturePicture()
     {
         JpegPictureCaptureSession();
+    }
+
+    private void JpegPictureCaptureSession() {
+        CameraTime.t_session_go = SystemClock.elapsedRealtime();
+
+        Log.v(TAG, "Start Configuring JpegPictureCaptureSession..");
+        List<Surface> outputSurfaces = new ArrayList<Surface>(3);
+
+        outputSurfaces.add(mJpegImageReader.getSurface());
+
+        try {
+            mCameraDevice.createCaptureSession(outputSurfaces, mJpegSessionStateCallback, null);
+            Log.v(TAG, "Call to JpegPictureCaptureSession complete.");
+        } catch (CameraAccessException e) {
+            Log.e(TAG, "Error configuring ISP.");
+        }
     }
 
     private void takeZslPicture()
@@ -450,5 +443,13 @@ public class Api2Camera implements CameraInterface {
     public void stopRecording()
     {
 
+    }
+
+    public Boolean OpsIsFinish()
+    {
+        CamOpsReq();
+        Log.v(TAG, "Op is Finish!");
+        CamOpsFinish();
+        return true;
     }
 }
