@@ -60,6 +60,8 @@ public class CameraInfoCache {
 
         public Integer mRawFormat;
         public Size mDepthCloudSize = null;
+
+        private Size mVideoSize;
     }
 
     public CameraInfoCache(Context context,SurfaceView mSurface)

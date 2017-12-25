@@ -14,6 +14,7 @@ public interface CameraInterface {
 
     void startPreview(Surface surface);
     void startPreview(Surface surface,boolean ZslMode);
+    void startRecordingPreview(Surface surface);
 
     void takePicture();
 

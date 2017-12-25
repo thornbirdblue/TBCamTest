@@ -80,6 +80,7 @@ public class BaseTestCases implements CamTestCases {
     private void testRecording()
     {
         mApi2Cam.openCamera();
+        mApi2Cam.startRecordingPreview(mPreviewHolder.getSurface());
         mApi2Cam.startRecording();
         try {
             Thread.sleep(mRecordingTime);

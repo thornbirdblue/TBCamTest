@@ -29,7 +29,9 @@ import android.media.Image;
 import android.media.ImageReader;
 import android.media.ImageWriter;
 import android.graphics.ImageFormat;
+import android.media.MediaRecorder;
 
+import android.util.Size;
 
 /**
  * Created by 10910661 on 2017/12/21.
@@ -74,6 +76,10 @@ public class Api2Camera implements CameraInterface {
     private static final int IMAGEWRITER_SIZE = 2;
 
     private long mReprocessingRequestNanoTime;
+
+    private Size mVideoSize;
+    private MediaRecorder mMediaRecorder;
+    private boolean mIsRecordingVideo;
 
     private CameraDevice.StateCallback mCameraStateCallback = new CameraDevice.StateCallback(){
         public void onOpened(CameraDevice camera)
@@ -316,6 +322,12 @@ public class Api2Camera implements CameraInterface {
     {
         mPreviewSurface = surface;
         mZslMode = ZslMode;
+        CamStartPreview();
+    }
+    public void startRecordingPreview(Surface surface)
+    {
+        mPreviewSurface = surface;
+        mZslMode = false;
         CamStartPreview();
     }
 
