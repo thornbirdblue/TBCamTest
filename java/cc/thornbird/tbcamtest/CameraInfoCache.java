@@ -20,6 +20,9 @@ import android.util.Size;
 import android.util.SizeF;
 
 import android.view.SurfaceView;
+import android.media.MediaRecorder;
+
+import java.io.File;
 
 
 /**
@@ -46,6 +49,8 @@ public class CameraInfoCache {
 
     private SurfaceView mPreviewSurface;
 
+    private File mVideoFile;
+
 
     class CameraInfo {
         private String mCameraId = null;
@@ -61,7 +66,8 @@ public class CameraInfoCache {
         public Integer mRawFormat;
         public Size mDepthCloudSize = null;
 
-        private Size mVideoSize;
+        public Size[] mVideoSizes;
+        public Size mVideoSize;
     }
 
     public CameraInfoCache(Context context,SurfaceView mSurface)
@@ -99,7 +105,7 @@ public class CameraInfoCache {
             return;
         }
 
-
+        mVideoFile = new File(mContext.getExternalFilesDir(null), "video.mp4");
     }
     public CameraInfoCache(CameraInfoCache mCIF){
         this.mCamNum = mCIF.mCamNum;
@@ -175,6 +181,19 @@ public class CameraInfoCache {
                     mCam.mDepthCloudSize = size;
                 }
             }
+
+        mCam.mVideoSizes = map.getOutputSizes(MediaRecorder.class);
+        mCam.mVideoSize = chooseVideoSize(mCam.mVideoSizes);
+    }
+
+    private static Size chooseVideoSize(Size[] choices) {
+        for (Size size : choices) {
+            if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
+                return size;
+            }
+        }
+        Log.e(TAG, "Couldn't find any suitable video size");
+        return choices[choices.length - 1];
     }
 
     private void printPicSizeToStringBuffer(StringBuffer Sb)
@@ -236,4 +255,21 @@ public class CameraInfoCache {
         return mCurrentCamInfo.mLargestYuvSize;
     }
 
+    public Size getRawStreamSize() {
+        return mCurrentCamInfo.mRawSize;
+    }
+
+    public Integer getRawStreamFormat() {
+        return mCurrentCamInfo.mRawFormat;
+    }
+
+    public Size getVideoStreamSize() {
+        return mCurrentCamInfo.mVideoSize;
+    }
+
+    public String getVideoFilePath()
+    {
+        Log.v(TAG,"Save Video FilePath:"+mVideoFile.getAbsolutePath());
+        return mVideoFile.getAbsolutePath();
+    }
 }
