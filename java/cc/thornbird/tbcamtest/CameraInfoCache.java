@@ -3,6 +3,7 @@ package cc.thornbird.tbcamtest;
 import android.content.Context;
 
 import android.hardware.Camera;
+import android.os.SystemClock;
 import android.view.View;
 import android.widget.TextView;
 
@@ -23,6 +24,9 @@ import android.view.SurfaceView;
 import android.media.MediaRecorder;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 
 
 /**
@@ -31,6 +35,7 @@ import java.io.File;
 
 public class CameraInfoCache {
     private static final String TAG = "TBCamTest_CAMINFO";
+    private static final String CamPicSaveDir = "/sdcard/DCIM/Camera/";
 
     private String mDevicehardware = Build.HARDWARE;
     private String mSystemModel = Build.MODEL;
@@ -43,12 +48,10 @@ public class CameraInfoCache {
     private String[] mCameralist;
 
     private final static int CamMaxNum = 6;
-
     private CameraInfo[] mCamInfo;
     private CameraInfo mCurrentCamInfo;
 
     private SurfaceView mPreviewSurface;
-
     private File mVideoFile;
 
 
@@ -68,6 +71,18 @@ public class CameraInfoCache {
 
         public Size[] mVideoSizes;
         public Size mVideoSize;
+
+        public int  mHardwareLeve;
+
+        public Integer mMaxInputStreams;
+        public Integer mMaxOutputProc;
+        public Integer mMaxOutputProcStalling;
+        public Integer mMaxOutputRaw;
+        public Integer mMaxOutputStreams;
+
+        public Boolean mYuvReprocSupport = false;
+        public Boolean mPrivateReprocSupport = false;
+        public Boolean mRawReprocSupport = false;
     }
 
     public CameraInfoCache(Context context,SurfaceView mSurface)
@@ -94,7 +109,10 @@ public class CameraInfoCache {
 
                 mCamInfo[Integer.parseInt(id)].mCameraId = id;
                 mCamInfo[Integer.parseInt(id)].mCameraCharacteristics = mCameraCharacteristics;
+
                 getPictureSizeList(mCamInfo[Integer.parseInt(id)],mCameraCharacteristics);
+
+                getStreamInfoList(mCamInfo[Integer.parseInt(id)],mCameraCharacteristics);
 
                 Integer facing = mCameraCharacteristics.get(CameraCharacteristics.LENS_FACING);
                 if(facing == CameraCharacteristics.LENS_FACING_BACK)
@@ -105,7 +123,7 @@ public class CameraInfoCache {
             return;
         }
 
-        mVideoFile = new File(mContext.getExternalFilesDir(null), "video.mp4");
+        mVideoFile = new File(CamPicSaveDir, "video.mp4");
     }
     public CameraInfoCache(CameraInfoCache mCIF){
         this.mCamNum = mCIF.mCamNum;
@@ -186,6 +204,30 @@ public class CameraInfoCache {
         mCam.mVideoSize = chooseVideoSize(mCam.mVideoSizes);
     }
 
+    private void getStreamInfoList(CameraInfo mCam,CameraCharacteristics mCC)
+    {
+        if (mCC == null)
+            return;
+
+        mCam.mHardwareLeve = mCC.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
+
+        int[] caps = mCC.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES);
+        for (int c: caps) {
+            if (c == CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_YUV_REPROCESSING)
+                mCam.mYuvReprocSupport=true;
+            else if (c == CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_PRIVATE_REPROCESSING)
+                mCam.mPrivateReprocSupport=true;
+            else if (c == CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW)
+                mCam.mRawReprocSupport=true;
+        }
+
+        mCam.mMaxInputStreams = mCC.get(CameraCharacteristics.REQUEST_MAX_NUM_INPUT_STREAMS);
+
+        mCam.mMaxOutputProc = mCC.get(CameraCharacteristics.REQUEST_MAX_NUM_OUTPUT_PROC );
+        mCam.mMaxOutputProcStalling = mCC.get(CameraCharacteristics.REQUEST_MAX_NUM_OUTPUT_PROC_STALLING );
+        mCam.mMaxOutputRaw = mCC.get(CameraCharacteristics.REQUEST_MAX_NUM_OUTPUT_RAW);
+    }
+
     private static Size chooseVideoSize(Size[] choices) {
         for (Size size : choices) {
             if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
@@ -212,6 +254,17 @@ public class CameraInfoCache {
 
             if (mCamInfo[id].mDepthSupport)
                 Sb.append("\nDepth Max Size： " + mCamInfo[id].mDepthCloudSize.toString());
+
+            Sb.append("\nHardware Level： " + mCamInfo[id].mHardwareLeve);
+            if(mCamInfo[id].mYuvReprocSupport)
+                 Sb.append("\nYuvReprocess Support! ");
+            if(mCamInfo[id].mPrivateReprocSupport)
+                Sb.append("\nPrivateReprocess Support! ");
+
+            Sb.append("\nMaxInputStreams： " + mCamInfo[id].mMaxInputStreams);
+            Sb.append("\nMaxOutputProc： " + mCamInfo[id].mMaxOutputProc);
+            Sb.append("\nMaxOutputProcStalling： " + mCamInfo[id].mMaxOutputProcStalling);
+            Sb.append("\nMaxOutputRaw： " + mCamInfo[id].mMaxOutputRaw);
 
             Sb.append("\n");
         }
@@ -271,5 +324,47 @@ public class CameraInfoCache {
     {
         Log.v(TAG,"Save Video FilePath:"+mVideoFile.getAbsolutePath());
         return mVideoFile.getAbsolutePath();
+    }
+
+    public void saveFile(byte[] Data,int w,int h,int type){
+        String filename = "";
+        String filetype = "";
+        try {
+            switch(type)
+            {
+                case 0:
+                    filetype="JPG";
+                    break;
+                case 1:
+                    filetype="yuv";
+                    break;
+                case 2:
+                    filetype="raw";
+                    break;
+                default:
+                    Log.w(TAG,"unknow file type");
+            }
+
+            filename = String.format("%sTBCam_%dx%d_%d.%s",CamPicSaveDir,w,h,System.currentTimeMillis(),filetype);
+            File file;
+            while (true) {
+                file = new File(filename);
+                if (file.createNewFile()) {
+                    break;
+                }
+            }
+
+            long t0 = SystemClock.uptimeMillis();
+            OutputStream os = new FileOutputStream(file);
+            os.write(Data);
+            os.flush();
+            os.close();
+            long t1 = SystemClock.uptimeMillis();
+
+            Log.d(TAG, String.format("Write data(%d) %d bytes as %s in %.3f seconds;%s",type,
+                    Data.length, file, (t1 - t0) * 0.001,filename));
+        } catch (IOException e) {
+            Log.e(TAG, "Error creating new file: ", e);
+        }
     }
 }

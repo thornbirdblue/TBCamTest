@@ -27,6 +27,10 @@ public class CamTestMode {
 
     private CamTestCallBack mCamTestCallBack;
 
+    interface CamTestCallBack{
+        Boolean CamTestIsFinish();
+    }
+
     public CamTestMode(int Mode,CameraInfoCache mCamInfoCache,CamTestCallBack mCB)
     {
         mCamTestCallBack = mCB;
@@ -57,19 +61,10 @@ public class CamTestMode {
 
     public void stop()
     {
-        mTestCaseHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if(isTestRunning)
-                    mCamTestCases.stop();
-
-                isTestRunning = false;
-            }
-        });
+       if(isTestRunning) {
+           mCamTestCases.stop();
+           mTestCaseThread.quit();
+           isTestRunning = false;
+       }
     }
-
-    interface CamTestCallBack{
-        Boolean CamTestIsFinish();
-    }
-
 }

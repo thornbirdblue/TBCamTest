@@ -24,7 +24,7 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
     private CameraInfoCache mCamInfo;
     private SurfaceView mSurface;
 
-    private  CamTestMode mCamTestMode;
+    private  CamTestMode mCamTestMode = null;
 
     private Handler mhandler=null;
 
@@ -101,7 +101,8 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
 
     private void doStopTest()
     {
-        mCamTestMode.stop();
+        if(mCamTestMode != null)
+            mCamTestMode.stop();
         setButtonEnable();
     }
 
@@ -113,9 +114,11 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
         setButtonEnable();
     }
     @Override
-    protected void onStop(){
-        super.onStop();
-        mCamTestMode.stop();
+    protected void onPause(){
+        super.onPause();
+        Log.d(TAG,"onPause");
+        if(mCamTestMode != null)
+            mCamTestMode.stop();
         mCamInfo.setPreviewInVisibility();
     }
 

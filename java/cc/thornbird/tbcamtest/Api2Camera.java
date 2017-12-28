@@ -46,8 +46,6 @@ public class Api2Camera implements CameraInterface {
     private static final String TAG = "TBCamTest_Api2Camera";
     private static int LOG_NTH_FRAME = 30;
 
-    private CamTestReprot mCamTestReport = null;
-
     private CameraInfoCache mCamInfo = null;
     private CameraManager mCameraManager = null;
 
@@ -202,7 +200,7 @@ public class Api2Camera implements CameraInterface {
                         jpegBuf = new byte[buffer.capacity()];
                         buffer.get(jpegBuf);
                     }
-                    saveFile(jpegBuf,img.getWidth(), img.getHeight(),0);
+                    mCamInfo.saveFile(jpegBuf,img.getWidth(), img.getHeight(),0);
                     img.close();
               }
             };
@@ -239,7 +237,7 @@ public class Api2Camera implements CameraInterface {
                     mUtilityHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            saveFile(saveData, mCamInfo.getYuvStreamSize().getWidth(), mCamInfo.getYuvStreamSize().getHeight(), 1);
+                            mCamInfo.saveFile(saveData, mCamInfo.getYuvStreamSize().getWidth(), mCamInfo.getYuvStreamSize().getHeight(), 1);
                         }
                     });
 
@@ -281,59 +279,18 @@ public class Api2Camera implements CameraInterface {
                         buffer.get(DateBuf);
                     }
 
-                    saveFile(DateBuf,img.getWidth(), img.getHeight(),2);
+                    mCamInfo.saveFile(DateBuf,img.getWidth(), img.getHeight(),2);
 
                     mRawLastReceivedImage = img;
                     Log.d(TAG,"mRawImageListener RECIEVE img!!!");
                 }
             };
 
-    private void saveFile(byte[] Data,int w,int h,int type){
-        String filename = "";
-        String filetype = "";
-        try {
-            switch(type)
-            {
-                case 0:
-                    filetype="JPG";
-                    break;
-                case 1:
-                    filetype="yuv";
-                    break;
-                case 2:
-                    filetype="raw";
-                    break;
-                default:
-                    Log.w(TAG,"unknow file type");
-            }
-
-            filename = String.format("/sdcard/DCIM/Camera/SNAP_%dx%d_%d.%s", w,h,System.currentTimeMillis(),filetype);
-            File file;
-            while (true) {
-                file = new File(filename);
-                if (file.createNewFile()) {
-                    break;
-                }
-            }
-
-            long t0 = SystemClock.uptimeMillis();
-            OutputStream os = new FileOutputStream(file);
-            os.write(Data);
-            os.flush();
-            os.close();
-            long t1 = SystemClock.uptimeMillis();
-
-            Log.d(TAG, String.format("Write data(%d) %d bytes as %s in %.3f seconds;%s",type,
-                    Data.length, file, (t1 - t0) * 0.001,filename));
-        } catch (IOException e) {
-            Log.e(TAG, "Error creating new file: ", e);
-        }
-    }
 
 
-    public Api2Camera(CameraInfoCache mCIF,CamTestReprot mCamReport)
+
+    public Api2Camera(CameraInfoCache mCIF)
     {
-        mCamTestReport = mCamReport;
         mCamInfo = mCIF;
         mCameraManager = mCamInfo.getCameraManger();
 
@@ -439,6 +396,26 @@ public class Api2Camera implements CameraInterface {
             }
         });
         Log.d(TAG, "Done Closing camera " + mCamInfo.getCameraId());
+    }
+    public void StopCamera()
+    {
+        Log.d(TAG, "StopCamera: " + mCamInfo.getCameraId());
+        mUtilityThread.quit();
+        mOpsThread.quit();
+
+                if (mCameraDevice != null) {
+                    if(mCurrentCaptureSession != null) {
+                        try {
+                            mCurrentCaptureSession.abortCaptures();
+                        } catch (CameraAccessException e) {
+                            Log.e(TAG, "Could not abortCaptures().");
+                        }
+                        mCurrentCaptureSession = null;
+                    }
+                    mCameraDevice.close();
+                }
+
+        Log.d(TAG, "StopCamera!!! ");
     }
 
     public void startPreview(Surface surface)

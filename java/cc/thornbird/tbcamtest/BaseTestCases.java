@@ -13,11 +13,11 @@ import java.util.concurrent.Semaphore;
 
 public class BaseTestCases implements CamTestCases {
     private static final String TAG = "TBCamTest_BaseTestCases";
-    private CamTestReprot mCamTestReport;
-    private Api2Camera mApi2Cam;
+    private CamTestReprot mCamTestReport = null;
+    private Api2Camera mApi2Cam = null;
 
-    private SurfaceView mPreviewView;
-    private SurfaceHolder mPreviewHolder;
+    private SurfaceView mPreviewView = null;
+    private SurfaceHolder mPreviewHolder = null;
     private final int mPreviewTime = 500; // 500ms
     private final int mRecordingTime = 1000;
 
@@ -26,7 +26,7 @@ public class BaseTestCases implements CamTestCases {
     public  BaseTestCases(CameraInfoCache mCIF)
     {
         mCamTestReport = new CamTestReprot();
-        mApi2Cam = new Api2Camera(mCIF,mCamTestReport);
+        mApi2Cam = new Api2Camera(mCIF);
 
         mPreviewView = mCIF.getPreviewSurface();
         mPreviewHolder = mPreviewView.getHolder();
@@ -35,6 +35,7 @@ public class BaseTestCases implements CamTestCases {
 
     public CamTestReprot doRunTestCases()
     {
+        Log.d(TAG, "doRunTestCases...");
         testOpenOneCameraAndClose();
         testStartPreview();
         testTakePicture();
@@ -96,9 +97,11 @@ public class BaseTestCases implements CamTestCases {
     {
         mApi2Cam.OpsIsFinish();
     }
+
     public void stop()
     {
-        mApi2Cam.closeCamera();
+        Log.d(TAG, "Stop camera!!! ");
+        mApi2Cam.StopCamera();
     }
 
     public Boolean testIsFinish()
