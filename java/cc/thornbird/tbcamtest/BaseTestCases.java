@@ -13,7 +13,7 @@ import java.util.concurrent.Semaphore;
 
 public class BaseTestCases implements CamTestCases {
     private static final String TAG = "TBCamTest_BaseTestCases";
-    private CamTestReprot mCamTestReport = null;
+    private CamTestReport mCamTestReport = null;
     private Api2Camera mApi2Cam = null;
 
     private SurfaceView mPreviewView = null;
@@ -35,7 +35,7 @@ public class BaseTestCases implements CamTestCases {
 
     public CamTestReprot doRunTestCases()
     {
-        Log.d(TAG, "doRunTestCases...");
+        CamLogger.i(TAG, "doRunTestCases...");
         testOpenOneCameraAndClose();
         testStartPreview();
         testTakePicture();
@@ -47,14 +47,21 @@ public class BaseTestCases implements CamTestCases {
 
     private void testOpenOneCameraAndClose()
     {
+        CamLogger.i(TAG, "testOpenOneCameraAndClose! ");
+
         mApi2Cam.openCamera();
+        mCamTestReport.addTestResult("Close One Camera Test",mApi2Cam.OpsResult());
         mApi2Cam.closeCamera();
+        mCamTestReport.addTestResult("Close One Camera Test",mApi2Cam.OpsResult());
     }
 
     private void testStartPreview()
     {
+        CamLogger.i(TAG, "testStartPreview! ");
+
         mApi2Cam.openCamera();
         mApi2Cam.startPreview(mPreviewHolder.getSurface());
+        mCamTestReport.addTestResult("StartPreview Test",mApi2Cam.OpsResult());
         try {
             Thread.sleep(mPreviewTime);
         } catch (InterruptedException e) {
@@ -66,6 +73,8 @@ public class BaseTestCases implements CamTestCases {
 
     private void testTakePicture()
     {
+        CamLogger.i(TAG, "testTakePicture! ");
+
         mApi2Cam.openCamera();
         mApi2Cam.startPreview(mPreviewHolder.getSurface());
         try {
@@ -75,14 +84,18 @@ public class BaseTestCases implements CamTestCases {
             e.printStackTrace();
         }
         mApi2Cam.takePicture();
+        mCamTestReport.addTestResult("takePicture Test",mApi2Cam.OpsResult());
         mApi2Cam.closeCamera();
     }
 
     private void testRecording()
     {
+        CamLogger.i(TAG, "testRecording! ");
+
         mApi2Cam.openCamera();
         mApi2Cam.startRecordingPreview(mPreviewHolder.getSurface());
         mApi2Cam.startRecording();
+        mCamTestReport.addTestResult("startRecording Test",mApi2Cam.OpsResult());
         try {
             Thread.sleep(mRecordingTime);
         } catch (InterruptedException e) {
@@ -100,7 +113,7 @@ public class BaseTestCases implements CamTestCases {
 
     public void stop()
     {
-        Log.d(TAG, "Stop camera!!! ");
+        CamLogger.i(TAG, "Stop camera!!! ");
         mApi2Cam.StopCamera();
     }
 
@@ -109,7 +122,7 @@ public class BaseTestCases implements CamTestCases {
         try {
             mSemaphore.acquire();
         } catch (InterruptedException e) {
-            Log.e(TAG,"Sem acquire ERROR!");
+            CamLogger.e(TAG,"Sem acquire ERROR!");
         }
         return true;
     }

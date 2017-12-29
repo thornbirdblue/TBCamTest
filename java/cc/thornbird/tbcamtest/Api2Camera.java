@@ -1,11 +1,10 @@
 package cc.thornbird.tbcamtest;
 
+import android.os.ConditionVariable;
 import android.view.Surface;
 import android.os.SystemClock;
 import android.os.Handler;
 import android.os.HandlerThread;
-
-import android.util.Log;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -44,7 +43,12 @@ import java.io.OutputStream;
 
 public class Api2Camera implements CameraInterface {
     private static final String TAG = "TBCamTest_Api2Camera";
-    private static int LOG_NTH_FRAME = 30;
+    private static int CamLogger_NTH_FRAME = 30;
+
+    private enum CamCmd{CAM_NULL,CAM_OPEN,CAM_CLOSE,CAM_STARTPREVIEW,CAM_TAKEPICTURE,CAM_STOPPREVIEW,CAM_STARTRECORDING,CAM_STOPRECORDING};
+    private enum CamCmdResult{CAM_OP_SUCCESS,CAM_OP_FALSE};
+    private CamCmd mCamCmd;
+    private CamCmdResult mCamOpResult;
 
     private CameraInfoCache mCamInfo = null;
     private CameraManager mCameraManager = null;
@@ -87,22 +91,25 @@ public class Api2Camera implements CameraInterface {
     private HandlerThread mUtilityThread;
     private Handler mUtilityHandler;
 
+    private ConditionVariable mOpsCondittion;
+
     private CameraDevice.StateCallback mCameraStateCallback = new CameraDevice.StateCallback(){
         public void onOpened(CameraDevice camera)
         {
             CameraTime.t_open_end = SystemClock.elapsedRealtime();
             mCameraDevice = camera;
-            Log.d(TAG, "STARTUP_REQUIREMENT Done opening camera " + mCamInfo.getCameraId() +
+            CamLogger.d(TAG, "STARTUP_REQUIREMENT Done opening camera " + mCamInfo.getCameraId() +
                     ". HAL open took: (" + (CameraTime.t_open_end - CameraTime.t_open_start) + " ms)");
-            CamOpsFinish();
+            CamOpsFinish(CamCmd.CAM_OPEN,CamCmdResult.CAM_OP_SUCCESS);
         }
         public void onDisconnected(CameraDevice camera)
         {
-            Log.d(TAG,"onDisconnected");
+            CamLogger.d(TAG,"onDisconnected");
         }
         public void onError(CameraDevice camera, int error)
         {
-            Log.d(TAG,"onError"+"error val is"+error);
+            CamLogger.e(TAG,"onError"+"error val is"+error);
+            CamOpsFinish(CamCmd.CAM_OPEN,CamCmdResult.CAM_OP_FALSE);
         }
     };
 
@@ -110,15 +117,15 @@ public class Api2Camera implements CameraInterface {
         public void onConfigured(CameraCaptureSession session)
         {
             mCurrentCaptureSession = session;
-            Log.d(TAG, "capture session onConfigured().");
+            CamLogger.d(TAG, "capture session onConfigured().");
             PreviewCaptureRequest();
         }
         public void onReady(CameraCaptureSession session) {
-            Log.d(TAG, "capture session onReady().  HAL capture session took: (" + (SystemClock.elapsedRealtime() - CameraTime.t_session_go) + " ms)");
+            CamLogger.d(TAG, "capture session onReady().  HAL capture session took: (" + (SystemClock.elapsedRealtime() - CameraTime.t_session_go) + " ms)");
         }
         public void onConfigureFailed(CameraCaptureSession session)
         {
-            Log.d(TAG,"onConfigureFailed");
+            CamLogger.e(TAG,"onConfigureFailed");
         }
     };
 
@@ -126,15 +133,16 @@ public class Api2Camera implements CameraInterface {
         public void onConfigured(CameraCaptureSession session)
         {
             mCurrentCaptureSession = session;
-            Log.d(TAG, "JPEG capture session onConfigured().");
+            CamLogger.d(TAG, "JPEG capture session onConfigured().");
             JpegCaptureRequest();
         }
         public void onReady(CameraCaptureSession session) {
-            Log.d(TAG, "JPEG capture session onReady().  HAL capture session took: (" + (SystemClock.elapsedRealtime() - CameraTime.t_session_go) + " ms)");
+            CamLogger.d(TAG, "JPEG capture session onReady().  HAL capture session took: (" + (SystemClock.elapsedRealtime() - CameraTime.t_session_go) + " ms)");
         }
         public void onConfigureFailed(CameraCaptureSession session)
         {
-            Log.d(TAG,"JPEG onConfigureFailed");
+            CamLogger.e(TAG,"JPEG onConfigureFailed");
+            CamOpsFinish(CamCmd.CAM_TAKEPICTURE,CamCmdResult.CAM_OP_FALSE);
         }
     };
 
@@ -142,41 +150,36 @@ public class Api2Camera implements CameraInterface {
         public void onConfigured(CameraCaptureSession session)
         {
             mCurrentCaptureSession = session;
-            Log.d(TAG, "VIDEO capture session onConfigured().");
+            CamLogger.d(TAG, "VIDEO capture session onConfigured().");
             VideoPreviewCaptureRequest();
         }
         public void onReady(CameraCaptureSession session) {
-            Log.d(TAG, "VIDEO capture session onReady().  HAL capture session took: (" + (SystemClock.elapsedRealtime() - CameraTime.t_session_go) + " ms)");
+            CamLogger.d(TAG, "VIDEO capture session onReady().  HAL capture session took: (" + (SystemClock.elapsedRealtime() - CameraTime.t_session_go) + " ms)");
         }
         public void onConfigureFailed(CameraCaptureSession session)
         {
-            Log.d(TAG,"VIDEO onConfigureFailed");
+            CamLogger.d(TAG,"VIDEO onConfigureFailed");
+            CamOpsFinish(CamCmd.CAM_STARTRECORDING,CamCmdResult.CAM_OP_FALSE);
         }
     };
 
     private CameraCaptureSession.CaptureCallback mCaptureCallback = new CameraCaptureSession.CaptureCallback() {
         public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
             if (!mFirstFrameArrived) {
-                CamOpsFinish();
+                CamOpsFinish(CamCmd.CAM_STARTPREVIEW,CamCmdResult.CAM_OP_SUCCESS);
                 mFirstFrameArrived = true;
                 long now = SystemClock.elapsedRealtime();
                 long dt = now - CameraTime.t0;
                 long camera_dt = now - CameraTime.t_session_go + CameraTime.t_open_end - CameraTime.t_open_start;
                 long repeating_req_dt = now - CameraTime.t_burst;
-                Log.d(TAG, "App control to first frame: (" + dt + " ms)");
-                Log.d(TAG, "HAL request to first frame: (" + repeating_req_dt + " ms) " + " Total HAL wait: (" + camera_dt + " ms)");
+                CamLogger.d(TAG, "App control to first frame: (" + dt + " ms)");
+                CamLogger.d(TAG, "HAL request to first frame: (" + repeating_req_dt + " ms) " + " Total HAL wait: (" + camera_dt + " ms)");
             }
             else
-                Log.d(TAG, "Receive Preview frame!");
+                CamLogger.v(TAG,"Receive Preview Data!");
         }
     };
 
-    private CameraCaptureSession.CaptureCallback mJpegCaptureCallback = new CameraCaptureSession.CaptureCallback() {
-        public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
-                Log.d(TAG, "JpegCaptureCallback: onCaptureCompleted!!!");
-                CamOpsFinish();
-        }
-    };
 
     ImageReader.OnImageAvailableListener mJpegImageListener =
             new ImageReader.OnImageAvailableListener() {
@@ -184,13 +187,13 @@ public class Api2Camera implements CameraInterface {
                 public void onImageAvailable(ImageReader reader) {
                     Image img = reader.acquireLatestImage();
                     if (img == null) {
-                        Log.e(TAG, "Null image returned JPEG");
+                        CamLogger.e(TAG, "Null image returned JPEG");
                         return;
                     }
                     Image.Plane plane0 = img.getPlanes()[0];
                     final ByteBuffer buffer = plane0.getBuffer();
                     long dt = System.nanoTime() - mReprocessingRequestNanoTime;
-                    Log.d(TAG, String.format("JPEG buffer available, w=%d h=%d time=%d size=%d dt=%.1f ms",
+                    CamLogger.d(TAG, String.format("JPEG buffer available, w=%d h=%d time=%d size=%d dt=%.1f ms",
                             img.getWidth(), img.getHeight(), img.getTimestamp(), buffer.capacity(), 0.000001 * dt));
                     // Save JPEG on the utility thread,
                     final byte[] jpegBuf;
@@ -202,6 +205,8 @@ public class Api2Camera implements CameraInterface {
                     }
                     mCamInfo.saveFile(jpegBuf,img.getWidth(), img.getHeight(),0);
                     img.close();
+
+                    CamOpsFinish(CamCmd.CAM_TAKEPICTURE,CamCmdResult.CAM_OP_SUCCESS);
               }
             };
     ImageReader.OnImageAvailableListener mYuvImageListener =
@@ -210,7 +215,7 @@ public class Api2Camera implements CameraInterface {
                 public void onImageAvailable(ImageReader reader) {
                     Image img = reader.acquireLatestImage();
                     if (img == null) {
-                        Log.e(TAG, "Null image returned YUV1");
+                        CamLogger.e(TAG, "Null image returned YUV1");
                         return;
                     }
 
@@ -218,7 +223,7 @@ public class Api2Camera implements CameraInterface {
                     final byte[][] DataBuf = new byte[3][];
                     for(int i=0;i<plane.length;i++) {
                         final ByteBuffer buffer = plane[i].getBuffer();
-                        Log.d(TAG,"ByteBuffer: "+buffer.capacity());
+                        CamLogger.d(TAG,"ByteBuffer: "+buffer.capacity());
                         if (buffer.hasArray()) {
                             DataBuf[i] = buffer.array();
                         } else {
@@ -232,7 +237,7 @@ public class Api2Camera implements CameraInterface {
                     final byte[] saveData = new byte[DataBuf[0].length+DataBuf[1].length];
                     System.arraycopy(DataBuf[0],0,saveData,0,DataBuf[0].length);
                     System.arraycopy(DataBuf[1],0,saveData,DataBuf[0].length,DataBuf[1].length);    // NV12
-                    Log.d(TAG,"Date len:"+DataBuf[0].length+" "+DataBuf[1].length);
+                    CamLogger.d(TAG,"Date len:"+DataBuf[0].length+" "+DataBuf[1].length);
 
                     mUtilityHandler.post(new Runnable() {
                         @Override
@@ -241,16 +246,17 @@ public class Api2Camera implements CameraInterface {
                         }
                     });
 
-                    Log.d(TAG,"YuvImageListener RECIEVE img!!!");
+                    CamLogger.d(TAG,"YuvImageListener RECIEVE img!!!");
 
                     if (mYuvLastReceivedImage != null) {
                         mYuvLastReceivedImage.close();
                     }
                     mYuvLastReceivedImage = img;
-                    if (++mYuvImageCounter % LOG_NTH_FRAME == 0) {
-                        Log.v(TAG, "YUV buffer available, Frame #=" + mYuvImageCounter + " w=" + img.getWidth() + " h=" + img.getHeight() + " time=" + img.getTimestamp());
+                    if (++mYuvImageCounter % CamLogger_NTH_FRAME == 0) {
+                        CamLogger.v(TAG, "YUV buffer available, Frame #=" + mYuvImageCounter + " w=" + img.getWidth() + " h=" + img.getHeight() + " time=" + img.getTimestamp());
                     }
 
+                    CamOpsFinish(CamCmd.CAM_TAKEPICTURE,CamCmdResult.CAM_OP_SUCCESS);
                 }
             };
 
@@ -260,7 +266,7 @@ public class Api2Camera implements CameraInterface {
                 public void onImageAvailable(ImageReader reader) {
                     Image img = reader.acquireLatestImage();
                     if (img == null) {
-                        Log.e(TAG, "Null image returned YUV1");
+                        CamLogger.e(TAG, "Null image returned YUV1");
                         return;
                     }
 
@@ -282,10 +288,11 @@ public class Api2Camera implements CameraInterface {
                     mCamInfo.saveFile(DateBuf,img.getWidth(), img.getHeight(),2);
 
                     mRawLastReceivedImage = img;
-                    Log.d(TAG,"mRawImageListener RECIEVE img!!!");
+                    CamLogger.d(TAG,"mRawImageListener RECIEVE img!!!");
+
+                    CamOpsFinish(CamCmd.CAM_TAKEPICTURE,CamCmdResult.CAM_OP_SUCCESS);
                 }
             };
-
 
 
 
@@ -307,9 +314,11 @@ public class Api2Camera implements CameraInterface {
             public void run() {
                 InitializeAllTheThings();
                 mAllThingsInitialized = true;
-                Log.v(TAG, "ImageReader initialization done.");
+                CamLogger.v(TAG, "ImageReader initialization done.");
             }
         });
+
+        mOpsCondittion = new ConditionVariable();
     }
 
     private void InitializeAllTheThings() {
@@ -341,26 +350,33 @@ public class Api2Camera implements CameraInterface {
         mRawImageReader.setOnImageAvailableListener(mRawImageListener,null);
     }
 
-    private void CamOpsReq()
+    private void CamOpsReq(CamCmd cmd)
     {
-        Log.v(TAG, "REQ Cam Op Lock!");
         try {
             mSemaphore.acquire();
+            mCamCmd = cmd;
+            mOpsCondittion.close();
+            CamLogger.v(TAG, "CAM CMD:"+mCamCmd);
         } catch (InterruptedException e) {
-            Log.e(TAG,"Sem acquire ERROR!");
+            CamLogger.e(TAG,"Sem acquire ERROR!");
         }
     }
 
-    private void CamOpsFinish()
+    private void CamOpsFinish(CamCmd cmd,CamCmdResult result)
     {
-        Log.v(TAG, "Last Cam cmd is finish!");
+        mCamOpResult = result;
+
+        if(mCamCmd == cmd)
+            mOpsCondittion.open();
+
         mSemaphore.release();
+        CamLogger.v(TAG, "Last Cam cmd is finish!");
     }
 
     public void openCamera()
     {
-        Log.d(TAG, "STARTUP_REQUIREMENT opening camera " + mCamInfo.getCameraId());
-        CamOpsReq();
+        CamLogger.d(TAG, "STARTUP_REQUIREMENT opening camera " + mCamInfo.getCameraId());
+        CamOpsReq(CamCmd.CAM_OPEN);
         mOpsHandler.post(new Runnable() {
             @Override
             public void run() {
@@ -368,7 +384,7 @@ public class Api2Camera implements CameraInterface {
                 try {
                     mCameraManager.openCamera(mCamInfo.getCameraId(), mCameraStateCallback, null);
                 } catch (CameraAccessException e) {
-                    Log.e(TAG, "Unable to openCamera().");
+                    CamLogger.e(TAG, "Unable to openCamera().");
                 }
             }
         });
@@ -376,8 +392,8 @@ public class Api2Camera implements CameraInterface {
 
     public void closeCamera()
     {
-        Log.d(TAG, "Closing camera " + mCamInfo.getCameraId());
-        CamOpsReq();
+        CamLogger.d(TAG, "Closing camera " + mCamInfo.getCameraId());
+        CamOpsReq(CamCmd.CAM_CLOSE);
         mOpsHandler.post(new Runnable() {
             @Override
             public void run() {
@@ -386,20 +402,20 @@ public class Api2Camera implements CameraInterface {
                         try {
                             mCurrentCaptureSession.abortCaptures();
                         } catch (CameraAccessException e) {
-                            Log.e(TAG, "Could not abortCaptures().");
+                            CamLogger.e(TAG, "Could not abortCaptures().");
                         }
                         mCurrentCaptureSession = null;
                     }
                     mCameraDevice.close();
                 }
-                CamOpsFinish();
+                CamOpsFinish(CamCmd.CAM_CLOSE,CamCmdResult.CAM_OP_SUCCESS);
             }
         });
-        Log.d(TAG, "Done Closing camera " + mCamInfo.getCameraId());
+        CamLogger.d(TAG, "Done Closing camera " + mCamInfo.getCameraId());
     }
     public void StopCamera()
     {
-        Log.d(TAG, "StopCamera: " + mCamInfo.getCameraId());
+        CamLogger.d(TAG, "StopCamera: " + mCamInfo.getCameraId());
         mUtilityThread.quit();
         mOpsThread.quit();
 
@@ -408,14 +424,14 @@ public class Api2Camera implements CameraInterface {
                         try {
                             mCurrentCaptureSession.abortCaptures();
                         } catch (CameraAccessException e) {
-                            Log.e(TAG, "Could not abortCaptures().");
+                            CamLogger.e(TAG, "Could not abortCaptures().");
                         }
                         mCurrentCaptureSession = null;
                     }
                     mCameraDevice.close();
                 }
 
-        Log.d(TAG, "StopCamera!!! ");
+        CamLogger.d(TAG, "StopCamera!!! ");
     }
 
     public void startPreview(Surface surface)
@@ -445,8 +461,8 @@ public class Api2Camera implements CameraInterface {
 
     private void CamStartVideoPreview()
     {
-        Log.d(TAG, "Start CamStartVideoPreview..");
-        CamOpsReq();
+        CamLogger.d(TAG, "Start CamStartVideoPreview..");
+        CamOpsReq(CamCmd.CAM_STARTPREVIEW);
         mOpsHandler.post(new Runnable() {
             @Override
             public void run() {
@@ -480,7 +496,7 @@ public class Api2Camera implements CameraInterface {
     private void startVideoCaptureSession() {
         CameraTime.t_session_go = SystemClock.elapsedRealtime();
 
-        Log.d(TAG, "Start Configuring Video CaptureSession..");
+        CamLogger.d(TAG, "Start Configuring Video CaptureSession..");
         List<Surface> outputSurfaces = new ArrayList<Surface>(3);
 
         outputSurfaces.add(mPreviewSurface);
@@ -488,16 +504,16 @@ public class Api2Camera implements CameraInterface {
 
         try {
             mCameraDevice.createCaptureSession(outputSurfaces, mVideoSessionStateCallback, null);
-            Log.v(TAG, "  Call to startVideoCaptureSession complete.");
+            CamLogger.v(TAG, "  Call to startVideoCaptureSession complete.");
         } catch (CameraAccessException e) {
-            Log.e(TAG, "Error configuring ISP.");
+            CamLogger.e(TAG, "Error configuring ISP.");
         }
     }
 
     private void VideoPreviewCaptureRequest()
     {
         CameraTime.t_burst = SystemClock.elapsedRealtime();
-        Log.d(TAG, "VideoPreviewCaptureRequest...");
+        CamLogger.d(TAG, "VideoPreviewCaptureRequest...");
         try {
             mFirstFrameArrived = false;
             CaptureRequest.Builder b1 = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
@@ -509,14 +525,14 @@ public class Api2Camera implements CameraInterface {
 
             mCurrentCaptureSession.setRepeatingRequest(b1.build(), mCaptureCallback, mOpsHandler);
         } catch (CameraAccessException e) {
-            Log.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
+            CamLogger.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
         }
     }
 
     private void CamStartPreview()
     {
-        Log.d(TAG, "Start CamStartPreview..");
-        CamOpsReq();
+        CamLogger.d(TAG, "Start CamStartPreview..");
+        CamOpsReq(CamCmd.CAM_STARTPREVIEW);
         mOpsHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -531,50 +547,50 @@ public class Api2Camera implements CameraInterface {
     private void startCaptureSession() {
         CameraTime.t_session_go = SystemClock.elapsedRealtime();
 
-        Log.d(TAG, "Start Configuring CaptureSession..");
+        CamLogger.d(TAG, "Start Configuring CaptureSession..");
         List<Surface> outputSurfaces = new ArrayList<Surface>(3);
 
         outputSurfaces.add(mPreviewSurface);
 
         try {
                 mCameraDevice.createCaptureSession(outputSurfaces, mSessionStateCallback, null);
-                Log.v(TAG, "  Call to createCaptureSession complete.");
+                CamLogger.v(TAG, "  Call to createCaptureSession complete.");
         } catch (CameraAccessException e) {
-            Log.e(TAG, "Error configuring ISP.");
+            CamLogger.e(TAG, "Error configuring ISP.");
         }
     }
 
     private void PreviewCaptureRequest()
     {
         CameraTime.t_burst = SystemClock.elapsedRealtime();
-        Log.d(TAG, "PreviewCaptureRequest...");
+        CamLogger.d(TAG, "PreviewCaptureRequest...");
         try {
             mFirstFrameArrived = false;
             CaptureRequest.Builder b1 = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             b1.addTarget(mPreviewSurface);
             mCurrentCaptureSession.setRepeatingRequest(b1.build(), mCaptureCallback, mOpsHandler);
         } catch (CameraAccessException e) {
-            Log.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
+            CamLogger.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
         }
     }
 
     private void JpegCaptureRequest()
     {
         CameraTime.t_burst = SystemClock.elapsedRealtime();
-        Log.d(TAG, "JpegCaptureRequest...");
+        CamLogger.d(TAG, "JpegCaptureRequest...");
         try {
             CaptureRequest.Builder b1 = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             b1.addTarget(mJpegImageReader.getSurface());
-            mCurrentCaptureSession.capture(b1.build(), mJpegCaptureCallback, mOpsHandler);
+            mCurrentCaptureSession.capture(b1.build(), null, mOpsHandler);
         } catch (CameraAccessException e) {
-            Log.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
+            CamLogger.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
         }
     }
 
     public void takePicture()
     {
-        Log.v(TAG, "takePicture..");
-        CamOpsReq();
+        CamLogger.v(TAG, "takePicture..");
+        CamOpsReq(CamCmd.CAM_TAKEPICTURE);
         mOpsHandler.post(new Runnable() {
             @Override
             public void run() {
@@ -596,16 +612,16 @@ public class Api2Camera implements CameraInterface {
     private void JpegPictureCaptureSession() {
         CameraTime.t_session_go = SystemClock.elapsedRealtime();
 
-        Log.v(TAG, "Start Configuring JpegPictureCaptureSession..");
+        CamLogger.v(TAG, "Start Configuring JpegPictureCaptureSession..");
         List<Surface> outputSurfaces = new ArrayList<Surface>(3);
 
         outputSurfaces.add(mJpegImageReader.getSurface());
 
         try {
             mCameraDevice.createCaptureSession(outputSurfaces, mJpegSessionStateCallback, null);
-            Log.v(TAG, "Call to JpegPictureCaptureSession complete.");
+            CamLogger.v(TAG, "Call to JpegPictureCaptureSession complete.");
         } catch (CameraAccessException e) {
-            Log.e(TAG, "Error configuring ISP.");
+            CamLogger.e(TAG, "Error configuring ISP.");
         }
     }
 
@@ -622,22 +638,24 @@ public class Api2Camera implements CameraInterface {
 
             mReprocessingRequestNanoTime = System.nanoTime();
         } catch (CameraAccessException e) {
-            Log.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
+            CamLogger.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
         }
 */
         mYuvLastReceivedImage = null;
-        Log.v(TAG, "  Reprocessing request submitted.");
+        CamLogger.v(TAG, "  Reprocessing request submitted.");
     }
 
     public void startRecording()
     {
         try {
+            CamOpsReq(CamCmd.CAM_STARTRECORDING);
             // UI
             mIsRecordingVideo = true;
 
             // Start recording
-            Log.v(TAG, "  startRecording...");
+            CamLogger.v(TAG, "  startRecording...");
             mMediaRecorder.start();
+            CamOpsFinish(CamCmd.CAM_STARTRECORDING,CamCmdResult.CAM_OP_SUCCESS);
         } catch (IllegalStateException e) {
             e.printStackTrace();
         }
@@ -645,19 +663,37 @@ public class Api2Camera implements CameraInterface {
 
     public void stopRecording()
     {
+        CamOpsReq(CamCmd.CAM_STOPRECORDING);
         // UI
         mIsRecordingVideo = false;
         // Stop recording
         mMediaRecorder.stop();
         mMediaRecorder.reset();
-        Log.v(TAG, "  stopRecording!!!");
+        CamOpsFinish(CamCmd.CAM_STOPRECORDING,CamCmdResult.CAM_OP_SUCCESS);
+        CamLogger.v(TAG, "  stopRecording!!!");
     }
 
     public Boolean OpsIsFinish()
     {
-        CamOpsReq();
-        Log.v(TAG, "Op is Finish!");
-        CamOpsFinish();
+        CamOpsReq(CamCmd.CAM_NULL);
+        CamLogger.v(TAG, "Op is Finish!");
+        CamOpsFinish(CamCmd.CAM_NULL,CamCmdResult.CAM_OP_SUCCESS);
         return true;
+    }
+
+    public Boolean OpsResult()
+    {
+        CamLogger.v(TAG, "Cam WAIT cmd finish!!!");
+        mOpsCondittion.block();
+        if(mCamOpResult == CamCmdResult.CAM_OP_SUCCESS)
+            return true;
+        else if(mCamOpResult == CamCmdResult.CAM_OP_FALSE) {
+            CamLogger.e(TAG, "Cam CMD:"+mCamCmd +" Result is FALSE!!!");
+            return false;
+        }
+        else {
+            CamLogger.e(TAG, "Cam result is INVAL!!!");
+            return false;
+        }
     }
 }

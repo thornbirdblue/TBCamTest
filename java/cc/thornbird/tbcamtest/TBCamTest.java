@@ -10,7 +10,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import android.util.Log;
 import android.os.Handler;
 
 /**
@@ -74,7 +73,7 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
     private void doBaseTest()
     {
         setButtonDisable();
-        Log.d(TAG,"Do Base Test!!!");
+        CamLogger.d(TAG,"Do Base Test!!!");
 
         mCamTestMode = new CamTestMode(CamTestMode.TM_BaseTest_Mode,mCamInfo,this);
 
@@ -116,7 +115,7 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
     @Override
     protected void onPause(){
         super.onPause();
-        Log.d(TAG,"onPause");
+        CamLogger.d(TAG,"onPause");
         if(mCamTestMode != null)
             mCamTestMode.stop();
         mCamInfo.setPreviewInVisibility();

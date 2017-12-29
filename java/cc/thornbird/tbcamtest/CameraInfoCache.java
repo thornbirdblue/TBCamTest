@@ -16,7 +16,6 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Build;
-import android.util.Log;
 import android.util.Size;
 import android.util.SizeF;
 
@@ -94,7 +93,7 @@ public class CameraInfoCache {
         try {
             mCameralist = mCameraManager.getCameraIdList();
         } catch (Exception e) {
-            Log.e(TAG, "ERROR: Could not get camera ID list / no camera information is available: " + e);
+            CamLogger.e(TAG, "ERROR: Could not get camera ID list / no camera information is available: " + e);
             return;
         }
         mCamNum = mCameralist.length;
@@ -119,7 +118,7 @@ public class CameraInfoCache {
                     mCurrentCamInfo = mCamInfo[Integer.parseInt(id)];
             }
         } catch (Exception e) {
-            Log.e(TAG, "ERROR: Could not getCameraCharacteristics: " + e);
+            CamLogger.e(TAG, "ERROR: Could not getCameraCharacteristics: " + e);
             return;
         }
 
@@ -172,12 +171,12 @@ public class CameraInfoCache {
             long lowestStall = Long.MAX_VALUE;
             for (int i = 0; i < formats.length; i++) {
                 if (formats[i] == ImageFormat.YUV_420_888) {
-                    Log.v(TAG,"YUV support");
+                    CamLogger.v(TAG,"YUV support");
                     mCam.mYuvPicSupport = true;
                     mCam.mLargestYuvSize = returnLargestSize(map.getOutputSizes(formats[i]));
                 }
                 if (formats[i] == ImageFormat.JPEG) {
-                    Log.v(TAG,"JPEG support");
+                    CamLogger.v(TAG,"JPEG support");
                     mCam.mJpegPicSupport = true;
                     mCam.mLargestJpegSize = returnLargestSize(map.getOutputSizes(formats[i]));
                 }
@@ -185,7 +184,7 @@ public class CameraInfoCache {
                     Size size = returnLargestSize(map.getOutputSizes(formats[i]));
                     long stall = map.getOutputStallDuration(formats[i], size);
                     if (stall < lowestStall) {
-                        Log.v(TAG,"RAW support");
+                        CamLogger.v(TAG,"RAW support");
                         mCam.mRawPicSupport = true;
                         mCam.mRawFormat = formats[i];
                         mCam.mRawSize = size;
@@ -193,7 +192,7 @@ public class CameraInfoCache {
                     }
                 }
                 if (formats[i] == ImageFormat.DEPTH_POINT_CLOUD) {
-                    Log.d(TAG,"Depth support");
+                    CamLogger.d(TAG,"Depth support");
                     mCam.mDepthSupport = true;
                     Size size = returnLargestSize(map.getOutputSizes(formats[i]));
                     mCam.mDepthCloudSize = size;
@@ -234,7 +233,7 @@ public class CameraInfoCache {
                 return size;
             }
         }
-        Log.e(TAG, "Couldn't find any suitable video size");
+        CamLogger.e(TAG, "Couldn't find any suitable video size");
         return choices[choices.length - 1];
     }
 
@@ -285,7 +284,7 @@ public class CameraInfoCache {
 
     public String getCameraId() {
         if(mCurrentCamInfo.mCameraId == null) {
-            Log.e(TAG,"Error:No Available CameraId. Set to 0 !!!");
+            CamLogger.e(TAG,"Error:No Available CameraId. Set to 0 !!!");
             mCurrentCamInfo.mCameraId = "0";
         }
         return mCurrentCamInfo.mCameraId;
@@ -322,7 +321,7 @@ public class CameraInfoCache {
 
     public String getVideoFilePath()
     {
-        Log.v(TAG,"Save Video FilePath:"+mVideoFile.getAbsolutePath());
+        CamLogger.v(TAG,"Save Video FilePath:"+mVideoFile.getAbsolutePath());
         return mVideoFile.getAbsolutePath();
     }
 
@@ -342,7 +341,7 @@ public class CameraInfoCache {
                     filetype="raw";
                     break;
                 default:
-                    Log.w(TAG,"unknow file type");
+                    CamLogger.w(TAG,"unknow file type");
             }
 
             filename = String.format("%sTBCam_%dx%d_%d.%s",CamPicSaveDir,w,h,System.currentTimeMillis(),filetype);
@@ -361,10 +360,10 @@ public class CameraInfoCache {
             os.close();
             long t1 = SystemClock.uptimeMillis();
 
-            Log.d(TAG, String.format("Write data(%d) %d bytes as %s in %.3f seconds;%s",type,
+            CamLogger.d(TAG, String.format("Write data(%d) %d bytes as %s in %.3f seconds;%s",type,
                     Data.length, file, (t1 - t0) * 0.001,filename));
         } catch (IOException e) {
-            Log.e(TAG, "Error creating new file: ", e);
+            CamLogger.e(TAG, "Error creating new file: ", e);
         }
     }
 }
