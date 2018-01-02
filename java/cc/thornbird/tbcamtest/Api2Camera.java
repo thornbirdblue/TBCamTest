@@ -431,7 +431,7 @@ public class Api2Camera implements CameraInterface {
                     mCameraDevice.close();
                 }
 
-        CamLogger.d(TAG, "StopCamera!!! ");
+        CamLogger.v(TAG, "StopCamera!!! ");
     }
 
     public void startPreview(Surface surface)

@@ -115,7 +115,7 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
     @Override
     protected void onPause(){
         super.onPause();
-        CamLogger.d(TAG,"onPause");
+        CamLogger.v(TAG,"onPause");
         if(mCamTestMode != null)
             mCamTestMode.stop();
         mCamInfo.setPreviewInVisibility();

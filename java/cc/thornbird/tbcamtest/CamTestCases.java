@@ -6,7 +6,7 @@ package cc.thornbird.tbcamtest;
 
 public interface CamTestCases {
 
-    public CamTestReprot doRunTestCases();
+    public void doRunTestCases();
     public void stop();
     public Boolean testIsFinish();
 }

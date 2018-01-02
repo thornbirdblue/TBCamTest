@@ -14,6 +14,8 @@ import java.util.concurrent.Semaphore;
 public class BaseTestCases implements CamTestCases {
     private static final String TAG = "TBCamTest_BaseTestCases";
     private CamTestReport mCamTestReport = null;
+    private final int BaseTestCaseNum = 4;
+
     private Api2Camera mApi2Cam = null;
 
     private SurfaceView mPreviewView = null;
@@ -25,7 +27,7 @@ public class BaseTestCases implements CamTestCases {
 
     public  BaseTestCases(CameraInfoCache mCIF)
     {
-        mCamTestReport = new CamTestReprot();
+        mCamTestReport = new CamTestReport(BaseTestCaseNum);
         mApi2Cam = new Api2Camera(mCIF);
 
         mPreviewView = mCIF.getPreviewSurface();
@@ -33,7 +35,7 @@ public class BaseTestCases implements CamTestCases {
         mCIF.setPreviewVisibility();
     }
 
-    public CamTestReprot doRunTestCases()
+    public void doRunTestCases()
     {
         CamLogger.i(TAG, "doRunTestCases...");
         testOpenOneCameraAndClose();
@@ -41,8 +43,8 @@ public class BaseTestCases implements CamTestCases {
         testTakePicture();
         testRecording();
         CamIsFinish();
+        mCamTestReport.printTestResult();
         mSemaphore.release();
-        return mCamTestReport;
     }
 
     private void testOpenOneCameraAndClose()
@@ -50,9 +52,8 @@ public class BaseTestCases implements CamTestCases {
         CamLogger.i(TAG, "testOpenOneCameraAndClose! ");
 
         mApi2Cam.openCamera();
-        mCamTestReport.addTestResult("Close One Camera Test",mApi2Cam.OpsResult());
+        mCamTestReport.addTestResult("Open Camera Test",mApi2Cam.OpsResult());
         mApi2Cam.closeCamera();
-        mCamTestReport.addTestResult("Close One Camera Test",mApi2Cam.OpsResult());
     }
 
     private void testStartPreview()
@@ -113,7 +114,7 @@ public class BaseTestCases implements CamTestCases {
 
     public void stop()
     {
-        CamLogger.i(TAG, "Stop camera!!! ");
+        CamLogger.d(TAG, "Stop camera!!! ");
         mApi2Cam.StopCamera();
     }
 
