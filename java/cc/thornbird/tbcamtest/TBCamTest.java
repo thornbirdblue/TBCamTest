@@ -3,6 +3,7 @@ package cc.thornbird.tbcamtest;
 import android.app.Activity;
 import android.graphics.Camera;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.support.annotation.Nullable;
 
 import android.view.SurfaceView;
@@ -35,6 +36,8 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
     private Button mStressTestButton;
     private Button mStopTestButton;
 
+    private PowerManager.WakeLock mWakeLock;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,6 +62,13 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
                     doBaseTest();
                 }
         });
+        mStressTestButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view)
+            {
+                doStressTest();
+            }
+        });
         mStopTestButton.setOnClickListener(new View.OnClickListener(){
                 @Override
                 public void onClick(View view)
@@ -75,10 +85,21 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
         setButtonDisable();
         CamLogger.d(TAG,"Do Base Test!!!");
 
-        mCamTestMode = new CamTestMode(CamTestMode.TM_BaseTest_Mode,mCamInfo,this);
+         mCamTestMode = new CamTestMode(CamTestMode.TM_BaseTest_Mode,mCamInfo,this);
 
         mCamTestMode.run();
     }
+
+    private void doStressTest()
+    {
+        setButtonDisable();
+        CamLogger.d(TAG,"Do Base Test!!!");
+
+        mCamTestMode = new CamTestMode(CamTestMode.TM_StressTest_Mode,mCamInfo,this);
+
+        mCamTestMode.run();
+    }
+
     private void setButtonDisable()
     {
         mBaseTestButton.setEnabled(false);
@@ -104,7 +125,12 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
             mCamTestMode.stop();
         setButtonEnable();
     }
-
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mWakeLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK ,TAG);
+        mWakeLock.acquire();
+    }
     @Override
     protected void onStart(){
         super.onStart();
@@ -116,6 +142,10 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
     protected void onPause(){
         super.onPause();
         CamLogger.v(TAG,"onPause");
+        if(null != mWakeLock){
+            mWakeLock.release();
+        }
+
         if(mCamTestMode != null)
             mCamTestMode.stop();
         mCamInfo.setPreviewInVisibility();

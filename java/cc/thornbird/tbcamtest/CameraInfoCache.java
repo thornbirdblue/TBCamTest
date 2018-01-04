@@ -56,6 +56,7 @@ public class CameraInfoCache {
 
     class CameraInfo {
         private String mCameraId = null;
+        private Integer facing;
         public CameraCharacteristics mCameraCharacteristics;
         public Boolean mJpegPicSupport = false;
         public Boolean mYuvPicSupport = false;
@@ -108,6 +109,7 @@ public class CameraInfoCache {
 
                 mCamInfo[Integer.parseInt(id)].mCameraId = id;
                 mCamInfo[Integer.parseInt(id)].mCameraCharacteristics = mCameraCharacteristics;
+                mCamInfo[Integer.parseInt(id)].facing = mCameraCharacteristics.get(CameraCharacteristics.LENS_FACING);
 
                 getPictureSizeList(mCamInfo[Integer.parseInt(id)],mCameraCharacteristics);
 
@@ -240,7 +242,7 @@ public class CameraInfoCache {
     private void printPicSizeToStringBuffer(StringBuffer Sb)
     {
         for(int id=0;id<mCamNum;id++) {
-            Sb.append("\nCamera " + id);
+            Sb.append("\nCamera " + id + " Facing: "+mCamInfo[id].facing);
 
             if (mCamInfo[id].mJpegPicSupport)
                 Sb.append("\nJpeg Max Size： " + mCamInfo[id].mLargestJpegSize.toString());

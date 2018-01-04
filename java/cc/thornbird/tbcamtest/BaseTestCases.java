@@ -38,6 +38,7 @@ public class BaseTestCases implements CamTestCases {
     public void doRunTestCases()
     {
         CamLogger.i(TAG, "doRunTestCases...");
+        mCamTestReport.clearLastResult();
         testOpenOneCameraAndClose();
         testStartPreview();
         testTakePicture();

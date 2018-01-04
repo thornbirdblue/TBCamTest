@@ -38,6 +38,12 @@ public class CamTestReport {
             mTestResult[i].printValue();
     }
 
+    public void clearLastResult()
+    {
+        CamLogger.v(TAG,"Reset TestNum recorder!");
+        mTestNum = 0;
+    }
+
     private class TestResult
     {
         public String mCaseName;

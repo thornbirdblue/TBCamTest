@@ -43,11 +43,34 @@ public class CamTestMode {
         {
             case TM_BaseTest_Mode:
                 mCamTestCases = new BaseTestCases(mCamInfoCache);
+                break;
+            case TM_BaseFuncTest_Mode:
+
+                break;
+            case TM_FeatureTest_Mode:
+
+                break;
+            case TM_AutoTest_Mode:
+
+                break;
+            case TM_PerfTest_Mode:
+
+                break;
+            case TM_StressTest_Mode:
+                mCamTestCases = new StressTestCases(mCamInfoCache);
+                break;
+            default:
+                mCamTestCases = null;
         }
     }
 
     public void run()
     {
+        if(mCamTestCases == null) {
+            CamLogger.e(TAG,"CamTestCases is NULL!!!");
+            return;
+        }
+
         mTestCaseHandler.post(new Runnable() {
             @Override
             public void run() {
@@ -61,6 +84,11 @@ public class CamTestMode {
 
     public void stop()
     {
+        if(mCamTestCases == null) {
+            CamLogger.e(TAG,"CamTestCases is NULL!!!");
+            return;
+        }
+
        if(isTestRunning) {
            mCamTestCases.stop();
            mTestCaseThread.quit();
