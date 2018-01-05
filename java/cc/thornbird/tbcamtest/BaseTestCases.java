@@ -70,6 +70,7 @@ public class BaseTestCases implements CamTestCases {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
+        mApi2Cam.stopPreview();
         mApi2Cam.closeCamera();
     }
 

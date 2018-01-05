@@ -319,6 +319,25 @@ public class Api2Camera implements CameraInterface {
         });
 
         mOpsCondittion = new ConditionVariable();
+
+        InitApi2Val();
+    }
+
+    private void InitApi2Val()
+    {
+        if(mCurrentCaptureSession != null)
+        {
+            mCurrentCaptureSession.close();;
+            mCurrentCaptureSession = null;
+        }
+
+        if(mCameraDevice != null)
+        {
+            mCameraDevice.close();;
+            mCameraDevice = null;
+        }
+
+        mZslMode = false;
     }
 
     private void InitializeAllTheThings() {
@@ -439,6 +458,34 @@ public class Api2Camera implements CameraInterface {
         mPreviewSurface = surface;
         mZslMode = false;
         CamStartPreview();
+    }
+
+    public void stopPreview()
+    {
+        CamLogger.v(TAG, "stopPreview!!! ");
+
+        CamOpsReq(CamCmd.CAM_STOPPREVIEW);
+        if(mZslMode == true)
+            CamLogger.v(TAG, "ZSL Mode stopPreview!!! ");
+        else
+            CamLogger.v(TAG, "NON ZSL Mode stopPreview!!! ");
+
+        CaptureSessionStop(mCurrentCaptureSession);
+        mCurrentCaptureSession = null;
+        CamOpsFinish(CamCmd.CAM_STOPPREVIEW,CamCmdResult.CAM_OP_SUCCESS);
+    }
+
+    private void CaptureSessionStop(CameraCaptureSession mCCS)
+    {
+        if (mCCS != null) {
+            try {
+                mCCS.abortCaptures();
+                mCCS.stopRepeating();
+                mCCS.close();
+            } catch (CameraAccessException e) {
+                CamLogger.e(TAG, "Could not abortCaptures().");
+            }
+        }
     }
 
     public void startPreview(Surface surface,boolean ZslMode)
@@ -606,7 +653,7 @@ public class Api2Camera implements CameraInterface {
 
     private void takeCapturePicture()
     {
-        JpegPictureCaptureSession();
+       JpegPictureCaptureSession();
     }
 
     private void JpegPictureCaptureSession() {

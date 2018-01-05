@@ -13,9 +13,10 @@ import java.util.concurrent.Semaphore;
 public class StressTestCases implements CamTestCases {
     private static final String TAG = "TBCamTest_StressTestCasess";
     private CamTestReport mCamTestReport = null;
-    private final int StressTestCaseNum = 3;
+    private final int StressTestCaseNum = 4;
 
     private final int OpenCloseStressNum = 1000;
+    private final int StartStopPreviewStressNum = 1000;
     private final int takePictureStressNum = 500;
     private final int RecorderStressNum = 500;
 
@@ -42,6 +43,7 @@ public class StressTestCases implements CamTestCases {
         CamLogger.i(TAG, "doRunTestCases...");
         mCamTestReport.clearLastResult();
         stressOpenOneCameraAndClose();
+        stressStartAndStopPreview();
         stressTakePicture();
         stressRecording();
         CamIsFinish();
@@ -58,6 +60,19 @@ public class StressTestCases implements CamTestCases {
             mApi2Cam.closeCamera();
         }
         mCamTestReport.addTestResult("Stress Open Camera Test",mApi2Cam.OpsResult());
+    }
+
+    private void stressStartAndStopPreview()
+    {
+        CamLogger.i(TAG, "StartStopPreviewStressNum! ");
+        mApi2Cam.openCamera();
+        for(int i=0;i<OpenCloseStressNum;i++) {
+            CamLogger.d(TAG, "stressOpenOneCameraAndClose: "+i);
+            mApi2Cam.startPreview(mPreviewHolder.getSurface());
+            mApi2Cam.stopPreview();
+        }
+        mApi2Cam.closeCamera();
+        mCamTestReport.addTestResult("Stress Start and Stop Preview Test",mApi2Cam.OpsResult());
     }
 
     private void stressTakePicture()
