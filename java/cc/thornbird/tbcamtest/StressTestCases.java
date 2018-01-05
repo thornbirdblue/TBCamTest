@@ -29,6 +29,9 @@ public class StressTestCases implements CamTestCases {
 
     private volatile Semaphore mSemaphore = new Semaphore(0);
 
+    private boolean mCamTest;
+    private boolean mRecorderTest;
+
     public  StressTestCases(CameraInfoCache mCIF)
     {
         mCamTestReport = new CamTestReport(StressTestCaseNum);
@@ -37,15 +40,22 @@ public class StressTestCases implements CamTestCases {
         mPreviewView = mCIF.getPreviewSurface();
         mPreviewHolder = mPreviewView.getHolder();
         mCIF.setPreviewVisibility();
+
+        mCamTest = mCIF.getCamSupport();
+        mRecorderTest = mCIF.getRecorderSupport();
     }
     public void doRunTestCases()
     {
         CamLogger.i(TAG, "doRunTestCases...");
         mCamTestReport.clearLastResult();
-        stressOpenOneCameraAndClose();
-        stressStartAndStopPreview();
-        stressTakePicture();
-        stressRecording();
+        if(mCamTest) {
+            stressOpenOneCameraAndClose();
+            stressStartAndStopPreview();
+            stressTakePicture();
+        }
+        if(mRecorderTest)
+            stressRecording();
+
         CamIsFinish();
         mCamTestReport.printTestResult();
         mSemaphore.release();

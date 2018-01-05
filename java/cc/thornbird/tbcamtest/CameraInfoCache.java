@@ -1,6 +1,7 @@
 package cc.thornbird.tbcamtest;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 
 import android.hardware.Camera;
 import android.os.SystemClock;
@@ -39,6 +40,9 @@ public class CameraInfoCache {
     private String mDevicehardware = Build.HARDWARE;
     private String mSystemModel = Build.MODEL;
     private String mPhoneSerial = Build.SERIAL;
+
+    private Boolean mCamPerm = false;
+    private Boolean mRecorderPerm = false;
 
     private int mCamNum;
 
@@ -89,6 +93,10 @@ public class CameraInfoCache {
     {
         mContext = context;
         mPreviewSurface = mSurface;
+
+        PackageManager pm = context.getPackageManager();
+        mCamPerm = (PackageManager.PERMISSION_GRANTED == pm.checkPermission("android.permission.CAMERA", "cc.thornbird.tbcamtest"));
+        mRecorderPerm = (PackageManager.PERMISSION_GRANTED == pm.checkPermission("android.permission.RECORD_AUDIO", "cc.thornbird.tbcamtest"));
 
         mCameraManager = (CameraManager) mContext.getSystemService(Context.CAMERA_SERVICE);
         try {
@@ -367,5 +375,14 @@ public class CameraInfoCache {
         } catch (IOException e) {
             CamLogger.e(TAG, "Error creating new file: ", e);
         }
+    }
+
+    public Boolean getCamSupport()
+    {
+        return mCamPerm;
+    }
+    public Boolean getRecorderSupport()
+    {
+        return mRecorderPerm;
     }
 }

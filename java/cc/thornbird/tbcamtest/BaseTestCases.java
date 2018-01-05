@@ -23,6 +23,9 @@ public class BaseTestCases implements CamTestCases {
     private final int mPreviewTime = 500; // 500ms
     private final int mRecordingTime = 1000;
 
+    private boolean mCamTest;
+    private boolean mRecorderTest;
+
     private volatile Semaphore mSemaphore = new Semaphore(0);
 
     public  BaseTestCases(CameraInfoCache mCIF)
@@ -33,16 +36,23 @@ public class BaseTestCases implements CamTestCases {
         mPreviewView = mCIF.getPreviewSurface();
         mPreviewHolder = mPreviewView.getHolder();
         mCIF.setPreviewVisibility();
+
+        mCamTest = mCIF.getCamSupport();
+        mRecorderTest = mCIF.getRecorderSupport();
     }
 
     public void doRunTestCases()
     {
         CamLogger.i(TAG, "doRunTestCases...");
         mCamTestReport.clearLastResult();
-        testOpenOneCameraAndClose();
-        testStartPreview();
-        testTakePicture();
-        testRecording();
+        if(mCamTest) {
+            testOpenOneCameraAndClose();
+            testStartPreview();
+            testTakePicture();
+        }
+        if(mRecorderTest)
+            testRecording();
+
         CamIsFinish();
         mCamTestReport.printTestResult();
         mSemaphore.release();
@@ -62,6 +72,11 @@ public class BaseTestCases implements CamTestCases {
         CamLogger.i(TAG, "testStartPreview! ");
 
         mApi2Cam.openCamera();
+        if(mApi2Cam.OpsResult() == false)
+        {
+            mCamTestReport.addTestResult("StartPreview Test",mApi2Cam.OpsResult());
+            return;
+        }
         mApi2Cam.startPreview(mPreviewHolder.getSurface());
         mCamTestReport.addTestResult("StartPreview Test",mApi2Cam.OpsResult());
         try {
@@ -79,6 +94,12 @@ public class BaseTestCases implements CamTestCases {
         CamLogger.i(TAG, "testTakePicture! ");
 
         mApi2Cam.openCamera();
+        if(mApi2Cam.OpsResult() == false)
+        {
+            mCamTestReport.addTestResult("StartPreview Test",mApi2Cam.OpsResult());
+            return;
+        }
+
         mApi2Cam.startPreview(mPreviewHolder.getSurface());
         try {
             Thread.sleep(mPreviewTime);
@@ -96,16 +117,27 @@ public class BaseTestCases implements CamTestCases {
         CamLogger.i(TAG, "testRecording! ");
 
         mApi2Cam.openCamera();
-        mApi2Cam.startRecordingPreview(mPreviewHolder.getSurface());
-        mApi2Cam.startRecording();
-        mCamTestReport.addTestResult("startRecording Test",mApi2Cam.OpsResult());
-        try {
-            Thread.sleep(mRecordingTime);
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        if(mApi2Cam.OpsResult() == false)
+        {
+            mCamTestReport.addTestResult("StartPreview Test",mApi2Cam.OpsResult());
+            return;
         }
-        mApi2Cam.stopRecording();
+
+        mApi2Cam.startRecordingPreview(mPreviewHolder.getSurface());
+        if(mApi2Cam.OpsResult() == true) {
+            mApi2Cam.startRecording();
+            mCamTestReport.addTestResult("startRecording Test", mApi2Cam.OpsResult());
+            try {
+                Thread.sleep(mRecordingTime);
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            mApi2Cam.stopRecording();
+        }
+        else
+            mCamTestReport.addTestResult("startRecording Test", mApi2Cam.OpsResult());
+
         mApi2Cam.closeCamera();
     }
 
