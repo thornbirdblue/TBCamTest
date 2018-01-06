@@ -45,7 +45,7 @@ public class CamTestMode {
                 mCamTestCases = new BaseTestCases(mCamInfoCache);
                 break;
             case TM_BaseFuncTest_Mode:
-
+                mCamTestCases = new BaseFuncTestCases(mCamInfoCache);
                 break;
             case TM_FeatureTest_Mode:
 

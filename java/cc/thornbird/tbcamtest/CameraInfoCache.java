@@ -86,7 +86,7 @@ public class CameraInfoCache {
 
         public Boolean mYuvReprocSupport = false;
         public Boolean mPrivateReprocSupport = false;
-        public Boolean mRawReprocSupport = false;
+        public Boolean mRawSupport = false;
     }
 
     public CameraInfoCache(Context context,SurfaceView mSurface)
@@ -227,7 +227,7 @@ public class CameraInfoCache {
             else if (c == CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_PRIVATE_REPROCESSING)
                 mCam.mPrivateReprocSupport=true;
             else if (c == CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_RAW)
-                mCam.mRawReprocSupport=true;
+                mCam.mRawSupport=true;
         }
 
         mCam.mMaxInputStreams = mCC.get(CameraCharacteristics.REQUEST_MAX_NUM_INPUT_STREAMS);
@@ -385,4 +385,7 @@ public class CameraInfoCache {
     {
         return mRecorderPerm;
     }
+
+    public Boolean getRawSupport(){return mCurrentCamInfo.mRawSupport;}
+    public Boolean getYuvReprocessSupport(){return mCurrentCamInfo.mYuvReprocSupport;}
 }

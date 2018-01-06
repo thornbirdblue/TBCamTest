@@ -68,7 +68,16 @@ public class Api2Camera implements CameraInterface {
     private volatile boolean mAllThingsInitialized = false;
     private boolean mFirstFrameArrived = false;
 
+    public static final int ZSL_JPEG = 0x1;
+    public static final int ZSL_YUV = 0x1<<1;
+    public static final int ZSL_RAW = 0x1<<2;
+    public static final int ZSL_YUV_REPROCESS = 0x1<<3;
+
     private boolean mZslMode = false;
+    private int mZslFlag = 0;
+    private int mZslTPFlag = 0;
+    private boolean mYuvReproNeed = false;
+
     private ImageReader mJpegImageReader;
     private ImageReader mYuvImageReader;
     private int mYuvImageCounter;
@@ -82,6 +91,10 @@ public class Api2Camera implements CameraInterface {
     private static final int IMAGEWRITER_SIZE = 2;
 
     private long mReprocessingRequestNanoTime;
+
+    //Reprocess
+    private TotalCaptureResult mLastTotalCaptureResult;
+    private ImageWriter mImageWriter;
 
     private Size mVideoSize;
     private MediaRecorder mMediaRecorder;
@@ -127,6 +140,10 @@ public class Api2Camera implements CameraInterface {
         }
         public void onReady(CameraCaptureSession session) {
             CamLogger.d(TAG, "capture session onReady().  HAL capture session took: (" + (SystemClock.elapsedRealtime() - CameraTime.t_session_go) + " ms)");
+            if(mYuvReproNeed)
+                mImageWriter = ImageWriter.newInstance(session.getInputSurface(), 2);
+            else
+                mImageWriter = null;
         }
         public void onConfigureFailed(CameraCaptureSession session)
         {
@@ -183,6 +200,15 @@ public class Api2Camera implements CameraInterface {
             }
             else
                 CamLogger.v(TAG,"Receive Preview Data!");
+        }
+    };
+
+    private CameraCaptureSession.CaptureCallback mZslCaptureCallback = new CameraCaptureSession.CaptureCallback() {
+        public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+            CamLogger.d(TAG, "ZSL Capture Complete!!!");
+            mLastTotalCaptureResult = result;
+            if(mYuvReproNeed)
+                takeYuvReprocessPicture();
         }
     };
 
@@ -471,6 +497,7 @@ public class Api2Camera implements CameraInterface {
     {
         mPreviewSurface = surface;
         mZslMode = false;
+        mZslFlag = 0;
         CamStartPreview();
     }
 
@@ -502,10 +529,16 @@ public class Api2Camera implements CameraInterface {
         }
     }
 
-    public void startPreview(Surface surface,boolean ZslMode)
+    public void startPreview(Surface surface,boolean ZslMode,int ZslFlag)
     {
         mPreviewSurface = surface;
         mZslMode = ZslMode;
+        mZslFlag = ZslFlag;
+        if((mZslFlag&ZSL_YUV_REPROCESS) == ZSL_YUV_REPROCESS)
+            mYuvReproNeed = true;
+        else
+            mYuvReproNeed = false;
+
         CamStartPreview();
     }
 
@@ -532,12 +565,49 @@ public class Api2Camera implements CameraInterface {
 
         outputSurfaces.add(mPreviewSurface);
 
+        ZslCaptureSession(outputSurfaces);
+
         try {
+            if(mYuvReproNeed) {
+                CamLogger.i(TAG, "  createReprocessableCaptureSession ...");
+                InputConfiguration inputConfig = new InputConfiguration(mCamInfo.getYuvStreamSize().getWidth(),
+                        mCamInfo.getYuvStreamSize().getHeight(), ImageFormat.YUV_420_888);
+                mCameraDevice.createReprocessableCaptureSession(inputConfig, outputSurfaces,
+                        mSessionStateCallback, null);
+            }
+            else{
                 mCameraDevice.createCaptureSession(outputSurfaces, mSessionStateCallback, null);
-                CamLogger.v(TAG, "  Call to createCaptureSession complete.");
+            }
+
+            CamLogger.v(TAG, "  Call to createCaptureSession complete.");
         } catch (CameraAccessException e) {
             CamLogger.e(TAG, "Error configuring ISP.");
             CamOpsFailed();
+        }
+    }
+    private void ZslCaptureSession(List<Surface> surfaceList)
+    {
+        if(mYuvReproNeed)
+        {
+            CamLogger.d(TAG, "CaptureSession Add YUV REPROCESS Stream.");
+            surfaceList.add(mYuvImageReader.getSurface());
+            surfaceList.add(mJpegImageReader.getSurface());
+        }
+        else {
+            if ((mZslFlag & ZSL_JPEG) == ZSL_JPEG) {
+                CamLogger.d(TAG, "CaptureSession Add Jpeg Stream.");
+                surfaceList.add(mJpegImageReader.getSurface());
+            }
+            if ((mZslFlag & ZSL_YUV) == ZSL_YUV) {
+                CamLogger.d(TAG, "CaptureSession Add YUV Stream.");
+                surfaceList.add(mYuvImageReader.getSurface());
+            }
+        }
+
+        if((mZslFlag&ZSL_RAW) == ZSL_RAW)
+        {
+            CamLogger.d(TAG, "CaptureSession Add RAW Stream.");
+            surfaceList.add(mRawImageReader.getSurface());
         }
     }
 
@@ -579,17 +649,18 @@ public class Api2Camera implements CameraInterface {
             public void run() {
                 mReprocessingRequestNanoTime = System.nanoTime();
 
-                if(mZslMode)
-                    takeZslPicture();
+                if(mZslMode) {
+                    CamLogger.e(TAG, "ERROR: Preview is ZSL Mode.Then Use takePicture(int ZslFlag) to Capture!!!");
+                    CamOpsFailed();
+                }
                 else
                     takeCapturePicture();
             }
         });
     }
-
     private void takeCapturePicture()
     {
-       JpegPictureCaptureSession();
+        JpegPictureCaptureSession();
     }
 
     private void JpegPictureCaptureSession() {
@@ -609,26 +680,112 @@ public class Api2Camera implements CameraInterface {
         }
     }
 
-    private void takeZslPicture()
+    public void takePicture(int ZslFlag)
     {
-/*
-        try {
+        CamLogger.v(TAG, "takePicture..");
+        CamOpsReq(CamCmd.CAM_TAKEPICTURE);
+        mZslTPFlag = ZslFlag;
+        mOpsHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mReprocessingRequestNanoTime = System.nanoTime();
 
-            CaptureRequest.Builder b1 = mCameraDevice.createReprocessCaptureRequest(mLastTotalCaptureResult);
-            // Todo: Read current orientation instead of just assuming device is in native orientation
-            b1.set(CaptureRequest.JPEG_QUALITY, (byte) 95);
-            b1.addTarget(mJpegImageReader.getSurface());
-            mCurrentCaptureSession.capture(b1.build(), mReprocessingCaptureCallback, mOpsHandler);
-
-            mReprocessingRequestNanoTime = System.nanoTime();
-        } catch (CameraAccessException e) {
-            CamLogger.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
-        }
-*/
-        mYuvLastReceivedImage = null;
-        CamLogger.v(TAG, "  Reprocessing request submitted.");
+                if(mZslMode) {
+                    takeZslPicture(mZslTPFlag);
+                }
+                else
+                    CamLogger.e(TAG, "ERROR: StartPreview is NON ZSL Mode!!!");
+            }
+        });
     }
 
+    private void takeZslPicture(int Flag)
+    {
+        CamLogger.d(TAG,"takeZslPicture Flag: "+Flag);
+        CaptureRequest.Builder bl = null;
+        try {
+            bl = mCameraDevice.createCaptureRequest(mCameraDevice.TEMPLATE_STILL_CAPTURE);
+        } catch (CameraAccessException e) {
+            CamLogger.e(TAG, "takeZslPicture Error configuring ISP.");
+            CamOpsFailed();
+        }
+        if(bl != null) {
+            if((mZslFlag&ZSL_JPEG) == ZSL_JPEG)
+            {
+                CamLogger.d(TAG, "Jpeg ZslTakePicture...");
+                bl.addTarget(mJpegImageReader.getSurface());
+            }
+            else if((mZslFlag&ZSL_YUV) == ZSL_YUV)
+            {
+                CamLogger.d(TAG, "YUV ZslTakePicture...");
+                bl.addTarget(mYuvImageReader.getSurface());
+            }
+            else if((mZslFlag&ZSL_RAW) == ZSL_RAW)
+            {
+                CamLogger.d(TAG, "RAW ZslTakePicture...");
+                bl.addTarget(mRawImageReader.getSurface());
+            }
+            else if((mZslFlag&ZSL_YUV_REPROCESS) == ZSL_YUV_REPROCESS)
+            {
+                CamLogger.d(TAG, "YUV Reprocess ZslTakePicture...");
+                bl.addTarget(mYuvImageReader.getSurface());
+            }
+
+            try {
+                mCurrentCaptureSession.capture(bl.build(), mZslCaptureCallback, null);
+            } catch (CameraAccessException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                CamLogger.e(TAG, "Could not access camera for issuePreviewCaptureRequest.");
+                CamOpsFailed();
+            }
+        }
+        else{
+            CamLogger.e(TAG, "ERROR: takeZslPicture can't createCaptureRequest!!!");
+            CamOpsFailed();
+        }
+
+        CamLogger.v(TAG,"takeZslPicture------------------------END");
+    }
+    private void takeYuvReprocessPicture()
+    {
+        CamLogger.d(TAG,"takeReprocessPicture...");
+        if(mYuvLastReceivedImage == null) {
+            CamLogger.w(TAG,"No Last YUV Image: Can't need to Reprocess!!!");
+            return;
+        }
+
+        mImageWriter.queueInputImage(mYuvLastReceivedImage);
+
+        CaptureRequest.Builder bl = null;
+        try {
+            bl = mCameraDevice.createReprocessCaptureRequest(mLastTotalCaptureResult);
+        } catch (CameraAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            DeviceCreateRequestError();
+        }
+        bl.set(CaptureRequest.JPEG_QUALITY, (byte) 95);
+        bl.addTarget(mJpegImageReader.getSurface());
+        try {
+            mCurrentCaptureSession.capture(bl.build(),null,null);
+        } catch (CameraAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            SessionCaptureError();
+        }
+        CamLogger.d(TAG,"takeReprocessPicture------------------------END");
+    }
+    private void DeviceCreateRequestError()
+    {
+        CamLogger.e(TAG, "takeReprocessPicture Error configuring ISP.");
+        CamOpsFailed();
+    }
+    private void SessionCaptureError()
+    {
+        CamLogger.e(TAG, "ERROR: CaptureSession could not capture!!!.");
+        CamOpsFailed();
+    }
     public void startRecordingPreview(Surface surface)
     {
         CamLogger.d(TAG, "Start CamStartVideoPreview..");

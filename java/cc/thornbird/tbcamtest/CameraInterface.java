@@ -13,7 +13,7 @@ public interface CameraInterface {
     void closeCamera();
 
     void startPreview(Surface surface);
-    void startPreview(Surface surface,boolean ZslMode);
+    void startPreview(Surface surface,boolean ZslMode,int ZslFlag);
     void startRecordingPreview(Surface surface);
 
     void takePicture();

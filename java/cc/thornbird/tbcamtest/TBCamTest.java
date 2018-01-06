@@ -62,6 +62,34 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
                     doBaseTest();
                 }
         });
+        mBaseFuncTestButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view)
+            {
+                doBaseFuncTest();
+            }
+        });
+        mFeatTestButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view)
+            {
+                doFeatTest();
+            }
+        });
+        mAutoTestButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view)
+            {
+                doAutoTest();
+            }
+        });
+        mPerfTestButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View view)
+            {
+                doPerfTest();
+            }
+        });
         mStressTestButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view)
@@ -90,10 +118,47 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
         mCamTestMode.run();
     }
 
+    private void doBaseFuncTest()
+    {
+        setButtonDisable();
+        CamLogger.d(TAG,"Do Base Func Test!!!");
+
+        mCamTestMode = new CamTestMode(CamTestMode.TM_BaseFuncTest_Mode,mCamInfo,this);
+
+        mCamTestMode.run();
+    }
+
+    private void doFeatTest()
+    {
+        setButtonDisable();
+        CamLogger.d(TAG,"Do Feature Test!!!");
+
+        mCamTestMode = new CamTestMode(CamTestMode.TM_FeatureTest_Mode,mCamInfo,this);
+
+        mCamTestMode.run();
+    }
+    private void doAutoTest()
+    {
+        setButtonDisable();
+        CamLogger.d(TAG,"Do Auto Test!!!");
+
+        mCamTestMode = new CamTestMode(CamTestMode.TM_AutoTest_Mode,mCamInfo,this);
+
+        mCamTestMode.run();
+    }
+    private void doPerfTest()
+    {
+        setButtonDisable();
+        CamLogger.d(TAG,"Do Perf Test!!!");
+
+        mCamTestMode = new CamTestMode(CamTestMode.TM_PerfTest_Mode,mCamInfo,this);
+
+        mCamTestMode.run();
+    }
     private void doStressTest()
     {
         setButtonDisable();
-        CamLogger.d(TAG,"Do Base Test!!!");
+        CamLogger.d(TAG,"Do Stress Test!!!");
 
         mCamTestMode = new CamTestMode(CamTestMode.TM_StressTest_Mode,mCamInfo,this);
 
