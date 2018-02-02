@@ -49,9 +49,13 @@ public class BaseTestCases implements CamTestCases {
             testOpenOneCameraAndClose();
             testStartPreview();
             testTakePicture();
-        }
+        }else
+            CamLogger.i(TAG, "WARNING: Can't have CAMERA Permission.");
+
         if(mRecorderTest)
             testRecording();
+        else
+            CamLogger.i(TAG, "WARNING: Can't have Recording Permission.");
 
         CamIsFinish();
         mCamTestReport.printTestResult();

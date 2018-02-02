@@ -43,6 +43,7 @@ public class CameraInfoCache {
 
     private Boolean mCamPerm = false;
     private Boolean mRecorderPerm = false;
+    private Boolean mWriteStoragePerm = false;
 
     private int mCamNum;
 
@@ -97,6 +98,7 @@ public class CameraInfoCache {
         PackageManager pm = context.getPackageManager();
         mCamPerm = (PackageManager.PERMISSION_GRANTED == pm.checkPermission("android.permission.CAMERA", "cc.thornbird.tbcamtest"));
         mRecorderPerm = (PackageManager.PERMISSION_GRANTED == pm.checkPermission("android.permission.RECORD_AUDIO", "cc.thornbird.tbcamtest"));
+        mWriteStoragePerm = (PackageManager.PERMISSION_GRANTED == pm.checkPermission("android.permission.WRITE_EXTERNAL_STORAGE", "cc.thornbird.tbcamtest"));
 
         mCameraManager = (CameraManager) mContext.getSystemService(Context.CAMERA_SERVICE);
         try {
@@ -250,7 +252,7 @@ public class CameraInfoCache {
     private void printPicSizeToStringBuffer(StringBuffer Sb)
     {
         for(int id=0;id<mCamNum;id++) {
-            Sb.append("\nCamera " + id + " Facing: "+mCamInfo[id].facing);
+            Sb.append("\nCamera " + id + " Facing: "+mCamInfo[id].facing);              // Back:0 Front:1
 
             if (mCamInfo[id].mJpegPicSupport)
                 Sb.append("\nJpeg Max Size： " + mCamInfo[id].mLargestJpegSize.toString());
@@ -381,10 +383,8 @@ public class CameraInfoCache {
     {
         return mCamPerm;
     }
-    public Boolean getRecorderSupport()
-    {
-        return mRecorderPerm;
-    }
+    public Boolean getRecorderSupport(){ return mRecorderPerm; }
+    public Boolean getStorageSupport(){ return mWriteStoragePerm; }
 
     public Boolean getRawSupport(){return mCurrentCamInfo.mRawSupport;}
     public Boolean getYuvReprocessSupport(){return mCurrentCamInfo.mYuvReprocSupport;}

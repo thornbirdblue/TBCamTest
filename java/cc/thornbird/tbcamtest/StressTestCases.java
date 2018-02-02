@@ -53,8 +53,13 @@ public class StressTestCases implements CamTestCases {
             stressStartAndStopPreview();
             stressTakePicture();
         }
+        else
+            CamLogger.i(TAG, "WARNING: Can't have CAMERA Permission.");
+
         if(mRecorderTest)
             stressRecording();
+        else
+            CamLogger.i(TAG, "WARNING: Can't have Recording Permission.");
 
         CamIsFinish();
         mCamTestReport.printTestResult();

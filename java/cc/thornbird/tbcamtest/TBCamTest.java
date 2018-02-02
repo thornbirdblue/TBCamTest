@@ -10,6 +10,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import android.os.Handler;
 
@@ -59,42 +60,42 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
                 @Override
                 public void onClick(View view)
                 {
-                    doBaseTest();
+                    doTestNum(CamTestMode.TM_BaseTest_Mode);
                 }
         });
         mBaseFuncTestButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view)
             {
-                doBaseFuncTest();
+                doTestNum(CamTestMode.TM_BaseFuncTest_Mode);
             }
         });
         mFeatTestButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view)
             {
-                doFeatTest();
+                doTestNum(CamTestMode.TM_FeatureTest_Mode);
             }
         });
         mAutoTestButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view)
             {
-                doAutoTest();
+                doTestNum(CamTestMode.TM_AutoTest_Mode);;
             }
         });
         mPerfTestButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view)
             {
-                doPerfTest();
+                doTestNum(CamTestMode.TM_PerfTest_Mode);
             }
         });
         mStressTestButton.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view)
             {
-                doStressTest();
+                doTestNum(CamTestMode.TM_StressTest_Mode);
             }
         });
         mStopTestButton.setOnClickListener(new View.OnClickListener(){
@@ -107,13 +108,67 @@ public class TBCamTest extends Activity implements CamTestMode.CamTestCallBack {
 
         mhandler = new Handler();
     }
+    private void doTestNum(int TestNum)
+    {
+        if (false == checkCameraPermission()) {
+            CamLogger.e(TAG, "Can't have CAMERA Permission.Can't Test!");
+            return;
+        }
 
+        switch(TestNum)
+        {
+            case CamTestMode.TM_BaseTest_Mode:
+                doBaseTest();
+                break;
+
+            case CamTestMode.TM_BaseFuncTest_Mode:
+                doBaseFuncTest();
+                break;
+
+            case CamTestMode.TM_FeatureTest_Mode:
+                doFeatTest();
+                break;
+
+            case CamTestMode.TM_AutoTest_Mode:
+                doAutoTest();
+                break;
+            case CamTestMode.TM_PerfTest_Mode:
+                doPerfTest();
+                break;
+
+            case CamTestMode.TM_StressTest_Mode:
+                doStressTest();
+                break;
+
+            default:
+                Toast.makeText(this,"Error Test Num!!!",Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private Boolean checkCameraPermission()
+    {
+        Boolean CamStorage = mCamInfo.getStorageSupport();
+        Boolean CamSupport = mCamInfo.getCamSupport();
+        Boolean RecorderSupport = mCamInfo.getRecorderSupport();
+        if(CamStorage == false) {
+            Toast.makeText(this, "Can't have STORAGE Permission.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        if(CamSupport == false)
+            Toast.makeText(this,"Can't have CAMERA Permission.",Toast.LENGTH_SHORT).show();
+
+        if(RecorderSupport == false)
+            Toast.makeText(this,"Can't have Recording Permission.",Toast.LENGTH_SHORT).show();
+
+        return CamSupport;
+    }
     private void doBaseTest()
     {
         setButtonDisable();
         CamLogger.d(TAG,"Do Base Test!!!");
 
-         mCamTestMode = new CamTestMode(CamTestMode.TM_BaseTest_Mode,mCamInfo,this);
+        mCamTestMode = new CamTestMode(CamTestMode.TM_BaseTest_Mode,mCamInfo,this);
 
         mCamTestMode.run();
     }

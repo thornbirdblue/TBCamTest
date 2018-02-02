@@ -569,13 +569,14 @@ public class Api2Camera implements CameraInterface {
 
         try {
             if(mYuvReproNeed) {
-                CamLogger.i(TAG, "  createReprocessableCaptureSession ...");
+                CamLogger.d(TAG, "  createReprocessableCaptureSession ...");
                 InputConfiguration inputConfig = new InputConfiguration(mCamInfo.getYuvStreamSize().getWidth(),
                         mCamInfo.getYuvStreamSize().getHeight(), ImageFormat.YUV_420_888);
                 mCameraDevice.createReprocessableCaptureSession(inputConfig, outputSurfaces,
                         mSessionStateCallback, null);
             }
             else{
+                CamLogger.d(TAG, "  createNormalCaptureSession ...");
                 mCameraDevice.createCaptureSession(outputSurfaces, mSessionStateCallback, null);
             }
 
